@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -10,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/projects", label: "Projects", emoji: "🚀" },
   { href: "/memory", label: "Memory", emoji: "🧠" },
   { href: "/docs", label: "Docs", emoji: "📄" },
+  { href: "/search", label: "Search", emoji: "🔍" },
 ];
 
 function OnlineDot() {
@@ -23,6 +25,17 @@ function OnlineDot() {
 
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [time, setTime] = useState<string>("");
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setTime(now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }));
+    };
+    tick();
+    const interval = setInterval(tick, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="flex h-full">
@@ -72,7 +85,10 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border-dim p-3">
+        <div className="border-t border-border-dim p-3 space-y-1">
+          {time && (
+            <div className="font-mono text-xs text-muted-foreground text-center">{time}</div>
+          )}
           <div className="font-mono text-[10px] text-muted-foreground/50 text-center">
             v0.1.0 · localhost
           </div>

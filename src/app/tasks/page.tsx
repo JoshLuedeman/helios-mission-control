@@ -1,7 +1,11 @@
 import { readTasks } from "@/lib/data/workspace";
+import { readProjects } from "@/lib/data/workspace";
 import { TasksClient } from "./tasks-client";
+
+export const dynamic = "force-dynamic";
 
 export default function TasksPage() {
   const tasks = readTasks();
-  return <TasksClient tasks={tasks} />;
+  const projects = readProjects();
+  return <TasksClient initialTasks={tasks} projects={projects} />;
 }
