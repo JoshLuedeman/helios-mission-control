@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { CronJob } from "@/lib/data/workspace";
 import { formatCronExpression } from "@/lib/format";
 
@@ -45,6 +45,27 @@ function TypeBadge({ kind }: { kind: string }) {
 
 export function CalendarClient({ cronJobs }: { cronJobs: CronJob[] }) {
   const [filter, setFilter] = useState<"all" | "active" | "disabled">("all");
+  const [calRange, setCalRange] = useState<"today" | "tomorrow" | "week">("today");
+  const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
+  const [calLoading, setCalLoading] = useState(true);
+  const [calError, setCalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCalLoading(true);
+    setCalError(null);
+    fetch(`/api/calendar?range=${calRange}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setCalError(data.error);
+          setCalEvents([]);
+        } else {
+          setCalEvents(data.events || []);
+        }
+      })
+      .catch((err) => setCalError(err.message))
+      .finally(() => setCalLoading(false));
+  }, [calRange]);
 
   const filtered = cronJobs.filter((job) => {
     if (filter === "active") return job.enabled;
@@ -97,17 +118,49 @@ export function CalendarClient({ cronJobs }: { cronJobs: CronJob[] }) {
         )}
       </div>
 
-      {/* Calendar Events placeholder */}
+      {/* Calendar Events */}
       <div className="mt-8 space-y-3">
-        <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground tracking-wider mb-2">
-          📆 CALENDAR EVENTS
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground tracking-wider">
+            📆 CALENDAR EVENTS
+          </div>
+          <div className="flex gap-1 rounded-lg bg-surface p-1">
+            {(["today", "tomorrow", "week"] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setCalRange(r)}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  calRange === r
+                    ? "bg-zeus-purple/20 text-zeus-purple"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r.charAt(0).toUpperCase() + r.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="rounded-xl border border-dashed border-border-dim bg-surface/50 p-8 text-center text-muted-foreground">
-          <p className="text-sm">Apple Calendar integration coming soon</p>
-          <p className="mt-1 font-mono text-xs text-muted-foreground/60">
-            Swift EventKit CLI will surface personal + work calendar events here
-          </p>
-        </div>
+
+        {calLoading ? (
+          <div className="rounded-xl border border-border-dim bg-surface p-8 text-center text-muted-foreground">
+            <span className="animate-pulse">Loading calendar events…</span>
+          </div>
+        ) : calError ? (
+          <div className="rounded-xl border border-destructive/30 bg-surface p-6 text-center">
+            <p className="text-sm text-destructive">{calError}</p>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">Check ICS calendar skill configuration</p>
+          </div>
+        ) : calEvents.length === 0 ? (
+          <div className="rounded-xl border border-border-dim bg-surface p-8 text-center text-muted-foreground">
+            No events for {calRange}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {calEvents.map((event, i) => (
+              <CalendarEventCard key={`${event.title}-${event.start}-${i}`} event={event} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -205,6 +258,55 @@ function CronJobCard({ job }: { job: CronJob }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+interface CalendarEvent {
+  title: string;
+  calendar: string;
+  allday: boolean;
+  start: string;
+  end: string;
+  start_time: string;
+  end_time: string;
+  date: string;
+  location: string | null;
+}
+
+function CalendarEventCard({ event }: { event: CalendarEvent }) {
+  const calColors: Record<string, string> = {
+    "Microsoft Work": "border-l-status-scheduled",
+    "Personal": "border-l-helios-amber",
+    "Microsoft Calendar": "border-l-status-scheduled",
+  };
+  const borderColor = calColors[event.calendar] || "border-l-zeus-purple";
+
+  return (
+    <div className={`rounded-lg border border-border-dim bg-surface p-3 pl-4 border-l-2 ${borderColor} transition-colors hover:bg-elevated`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium truncate">{event.title}</div>
+          {event.location && (
+            <div className="text-xs text-muted-foreground mt-0.5 truncate">📍 {event.location}</div>
+          )}
+        </div>
+        <div className="text-right shrink-0">
+          {event.allday ? (
+            <span className="rounded-full bg-zeus-purple/10 px-2 py-0.5 text-[10px] font-mono text-zeus-purple">ALL DAY</span>
+          ) : (
+            <div className="font-mono text-xs text-foreground">
+              {event.start_time} – {event.end_time}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="rounded-full bg-elevated px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+          {event.calendar}
+        </span>
+        <span className="font-mono text-[10px] text-muted-foreground">{event.date}</span>
+      </div>
     </div>
   );
 }
