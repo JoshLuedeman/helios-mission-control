@@ -1,65 +1,132 @@
-import Image from "next/image";
+import Link from "next/link";
+import { getActiveAgents, MISSION_STATEMENT } from "@/lib/agents.config";
+import { readDailyLogs, readCronJobs, readDocs, readTasks } from "@/lib/data/workspace";
 
 export default function Home() {
+  const activeAgents = getActiveAgents();
+  const logs = readDailyLogs();
+  const cronJobs = readCronJobs();
+  const docs = readDocs();
+  const tasks = readTasks();
+
+  const enabledCrons = cronJobs.filter((j) => j.enabled);
+  const todayLog = logs[0];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="p-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">
+          <span className="text-zeus-purple">⚡</span> Mission Control
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          {MISSION_STATEMENT}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Active Agents */}
+        <Link
+          href="/tasks"
+          className="group rounded-xl border border-border-dim bg-surface p-5 transition-all hover:border-helios-amber/30 hover:bg-elevated"
+        >
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
+            CREW STATUS
+          </div>
+          <div className="space-y-2">
+            {activeAgents.map((agent) => (
+              <div key={agent.id} className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ backgroundColor: agent.colorHex }} />
+                  <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: agent.colorHex }} />
+                </span>
+                <span className="text-sm font-medium">{agent.emoji} {agent.name}</span>
+                <span className="ml-auto font-mono text-xs text-muted-foreground">{agent.title}</span>
+              </div>
+            ))}
+          </div>
+        </Link>
+
+        {/* Tasks Summary */}
+        <Link
+          href="/tasks"
+          className="group rounded-xl border border-border-dim bg-surface p-5 transition-all hover:border-zeus-purple/30 hover:bg-elevated"
+        >
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
+            🎯 TASKS
+          </div>
+          {tasks.length > 0 ? (
+            <div className="space-y-1">
+              <div className="text-2xl font-bold">{tasks.filter((t) => t.status === "in_progress").length}</div>
+              <div className="text-xs text-muted-foreground">in progress · {tasks.filter((t) => t.status === "todo").length} queued</div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No tasks yet — add tasks.json to workspace</div>
+          )}
+        </Link>
+
+        {/* Cron Jobs */}
+        <Link
+          href="/calendar"
+          className="group rounded-xl border border-border-dim bg-surface p-5 transition-all hover:border-status-scheduled/30 hover:bg-elevated"
+        >
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
+            📅 CRON JOBS
+          </div>
+          <div className="text-2xl font-bold">{enabledCrons.length}</div>
+          <div className="text-xs text-muted-foreground">
+            active · {cronJobs.length - enabledCrons.length} disabled
+          </div>
+        </Link>
+
+        {/* Memory */}
+        <Link
+          href="/memory"
+          className="group rounded-xl border border-border-dim bg-surface p-5 transition-all hover:border-helios-amber/30 hover:bg-elevated"
+        >
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
+            🧠 MEMORY
+          </div>
+          <div className="text-2xl font-bold">{logs.length}</div>
+          <div className="text-xs text-muted-foreground">
+            daily logs {todayLog && `· latest: ${todayLog.date}`}
+          </div>
+        </Link>
+
+        {/* Docs */}
+        <Link
+          href="/docs"
+          className="group rounded-xl border border-border-dim bg-surface p-5 transition-all hover:border-status-oneshot/30 hover:bg-elevated"
+        >
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
+            📄 DOCUMENTS
+          </div>
+          <div className="text-2xl font-bold">{docs.length}</div>
+          <div className="text-xs text-muted-foreground">
+            artifacts across {new Set(docs.map((d) => d.directory)).size} directories
+          </div>
+        </Link>
+
+        {/* Quick Stats */}
+        <div className="rounded-xl border border-border-dim bg-surface p-5">
+          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
+            ⚙️ SYSTEM
+          </div>
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Runtime</span>
+              <span className="font-mono">OpenClaw</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Primary Model</span>
+              <span className="font-mono">Mistral 7B</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Agents</span>
+              <span className="font-mono">{activeAgents.length} active</span>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
