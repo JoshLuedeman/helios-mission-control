@@ -43,14 +43,16 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <nav className="flex w-60 flex-col border-r border-border-dim bg-[#0d0d14] shrink-0">
         {/* Mission Control Header */}
         <div className="border-b border-border-dim p-4">
-          <div className="rounded-lg border border-zeus-purple/30 bg-zeus-purple/5 px-3 py-2.5 text-center">
-            <div className="font-mono text-[10px] font-bold tracking-[0.25em] text-zeus-purple/70">
-              OLYMPUS
+          <Link href="/" className="block">
+            <div className="rounded-lg border border-zeus-purple/30 bg-zeus-purple/5 px-3 py-2.5 text-center transition-all hover:bg-zeus-purple/10 hover:border-zeus-purple/50">
+              <div className="font-mono text-[10px] font-bold tracking-[0.25em] text-zeus-purple/70">
+                OLYMPUS
+              </div>
+              <div className="font-mono text-sm font-bold tracking-widest text-zeus-purple">
+                MISSION CONTROL
+              </div>
             </div>
-            <div className="font-mono text-sm font-bold tracking-widest text-zeus-purple">
-              MISSION CONTROL
-            </div>
-          </div>
+          </Link>
 
           {/* Online Status */}
           <div className="mt-3 flex items-center gap-2 rounded-md bg-surface/50 px-3 py-1.5">
