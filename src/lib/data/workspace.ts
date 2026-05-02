@@ -258,6 +258,52 @@ export function isBrainMounted(): boolean {
   return fs.existsSync(paths.BRAIN_ROOT);
 }
 
+export interface FolderNode {
+  name: string;
+  path: string; // relative to brain root
+  children: FolderNode[];
+  fileCount: number;
+}
+
+export function readBrainTree(): FolderNode[] {
+  if (!fs.existsSync(paths.BRAIN_ROOT)) return [];
+
+  function buildTree(dir: string, maxDepth: number = 3, depth: number = 0): FolderNode[] {
+    if (depth > maxDepth) return [];
+    if (!fs.existsSync(dir)) return [];
+
+    const nodes: FolderNode[] = [];
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name.startsWith(".") || entry.name.startsWith("@") || entry.name === "node_modules") continue;
+        if (!entry.isDirectory()) continue;
+
+        const abs = path.join(dir, entry.name);
+        const relPath = path.relative(paths.BRAIN_ROOT, abs);
+        const children = buildTree(abs, maxDepth, depth + 1);
+
+        // Count .md files in this directory (non-recursive)
+        let fileCount = 0;
+        try {
+          fileCount = fs.readdirSync(abs).filter((f) => /\.md$/i.test(f) && !f.startsWith(".")).length;
+        } catch { /* skip */ }
+
+        nodes.push({
+          name: entry.name,
+          path: relPath,
+          children,
+          fileCount,
+        });
+      }
+    } catch { /* skip */ }
+
+    return nodes.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  return buildTree(paths.BRAIN_ROOT);
+}
+
 export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
 export type TaskPriority = "urgent" | "high" | "normal" | "low";
 

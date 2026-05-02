@@ -43,19 +43,29 @@ const BRAIN_FOLDER_COLORS: Record<string, string> = {
   "95-SOURCES": "bg-muted text-muted-foreground",
 };
 
+interface FolderNode {
+  name: string;
+  path: string;
+  children: FolderNode[];
+  fileCount: number;
+}
+
 export function DocsClient({
   docs: initialDocs,
   brainFiles,
   brainMounted,
+  brainTree,
 }: {
   docs: DocItem[];
   brainFiles: BrainItem[];
   brainMounted: boolean;
+  brainTree: FolderNode[];
 }) {
   const [docs, setDocs] = useState(initialDocs);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<(DocItem | BrainItem) & { source: "workspace" | "brain" } | null>(null);
   const [filterDir, setFilterDir] = useState<string | null>(null);
+  const [selectedBrainPath, setSelectedBrainPath] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<"workspace" | "brain">("workspace");
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -63,7 +73,6 @@ export function DocsClient({
   const [showPreview, setShowPreview] = useState(true);
 
   const directories = Array.from(new Set(docs.map((d) => d.directory)));
-  const brainFolders = Array.from(new Set(brainFiles.map((b) => b.folder)));
 
   const filteredDocs = docs.filter((d) => {
     if (filterDir && d.directory !== filterDir) return false;
@@ -75,7 +84,7 @@ export function DocsClient({
   });
 
   const filteredBrain = brainFiles.filter((b) => {
-    if (filterDir && b.folder !== filterDir) return false;
+    if (selectedBrainPath && !b.path.startsWith(selectedBrainPath)) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return b.title.toLowerCase().includes(q) || b.content.toLowerCase().includes(q) || b.path.toLowerCase().includes(q);
@@ -185,30 +194,56 @@ export function DocsClient({
         />
       </div>
 
-      {/* Folder Filters */}
-      <div className="mb-4 flex gap-1 flex-wrap">
-        <button
-          onClick={() => setFilterDir(null)}
-          className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-            !filterDir ? "bg-zeus-purple/20 text-zeus-purple" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          All
-        </button>
-        {(activeSection === "workspace" ? directories : brainFolders).map((dir) => (
+      {/* Folder Filters (workspace) or Folder Tree (brain) */}
+      {activeSection === "workspace" && (
+        <div className="mb-4 flex gap-1 flex-wrap">
           <button
-            key={dir}
-            onClick={() => setFilterDir(filterDir === dir ? null : dir)}
+            onClick={() => setFilterDir(null)}
             className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-              filterDir === dir ? "bg-zeus-purple/20 text-zeus-purple" : "text-muted-foreground hover:text-foreground"
+              !filterDir ? "bg-zeus-purple/20 text-zeus-purple" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {dir}
+            All
           </button>
-        ))}
-      </div>
+          {directories.map((dir) => (
+            <button
+              key={dir}
+              onClick={() => setFilterDir(filterDir === dir ? null : dir)}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                filterDir === dir ? "bg-zeus-purple/20 text-zeus-purple" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {dir}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <div className="flex gap-6">
+      <div className="flex gap-4">
+        {/* Brain Folder Tree (left sidebar when in brain mode) */}
+        {activeSection === "brain" && brainTree.length > 0 && (
+          <div className="w-56 shrink-0 rounded-xl border border-border-dim bg-surface p-3 self-start sticky top-8 max-h-[calc(100vh-12rem)] overflow-auto">
+            <div className="text-[10px] font-mono text-muted-foreground tracking-wider mb-2">📁 FOLDERS</div>
+            <button
+              onClick={() => setSelectedBrainPath(null)}
+              className={`w-full text-left rounded px-2 py-1 text-xs transition-colors mb-1 ${
+                !selectedBrainPath ? "bg-zeus-purple/10 text-zeus-purple font-medium" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All files ({brainFiles.length})
+            </button>
+            {brainTree.map((node) => (
+              <FolderTreeNode
+                key={node.path}
+                node={node}
+                selectedPath={selectedBrainPath}
+                onSelect={setSelectedBrainPath}
+                depth={0}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Document List */}
         <div className="w-full max-w-lg space-y-2">
           {activeSection === "workspace" ? (
@@ -448,5 +483,63 @@ function CreateDocForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function FolderTreeNode({
+  node,
+  selectedPath,
+  onSelect,
+  depth,
+}: {
+  node: FolderNode;
+  selectedPath: string | null;
+  onSelect: (path: string | null) => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(depth === 0);
+  const isSelected = selectedPath === node.path;
+  const hasChildren = node.children.length > 0;
+  const totalFiles = node.fileCount + node.children.reduce((s, c) => s + c.fileCount, 0);
+
+  return (
+    <div>
+      <button
+        onClick={() => {
+          if (isSelected) {
+            onSelect(null);
+          } else {
+            onSelect(node.path);
+          }
+          if (hasChildren) setExpanded(!expanded);
+        }}
+        className={`w-full text-left rounded px-2 py-1 text-xs transition-colors flex items-center gap-1 ${
+          isSelected ? "bg-zeus-purple/10 text-zeus-purple font-medium" : "text-muted-foreground hover:text-foreground"
+        }`}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      >
+        {hasChildren && (
+          <span className="text-[10px] text-muted-foreground/50 w-3">{expanded ? "▼" : "▶"}</span>
+        )}
+        {!hasChildren && <span className="w-3" />}
+        <span className="truncate flex-1">{node.name}</span>
+        {totalFiles > 0 && (
+          <span className="text-[10px] text-muted-foreground/50 shrink-0">{totalFiles}</span>
+        )}
+      </button>
+      {expanded && hasChildren && (
+        <div>
+          {node.children.map((child) => (
+            <FolderTreeNode
+              key={child.path}
+              node={child}
+              selectedPath={selectedPath}
+              onSelect={onSelect}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

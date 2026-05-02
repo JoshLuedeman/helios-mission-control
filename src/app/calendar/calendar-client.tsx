@@ -1,20 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { CronJob } from "@/lib/data/workspace";
 import { formatCronExpression } from "@/lib/format";
+import { toast } from "sonner";
 
-function StatusBadge({ enabled }: { enabled: boolean }) {
+function StatusBadge({ enabled, onClick }: { enabled: boolean; onClick?: () => void }) {
   return (
-    <span
-      className={`rounded-full px-2.5 py-0.5 text-[10px] font-mono font-medium ${
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      className={`rounded-full px-2.5 py-0.5 text-[10px] font-mono font-medium cursor-pointer transition-colors hover:opacity-80 ${
         enabled
           ? "bg-status-online/10 text-status-online"
           : "bg-muted text-muted-foreground"
       }`}
+      title={`Click to ${enabled ? "disable" : "enable"}`}
     >
       {enabled ? "ACTIVE" : "DISABLED"}
-    </span>
+    </button>
   );
 }
 
@@ -43,7 +46,8 @@ function TypeBadge({ kind }: { kind: string }) {
   );
 }
 
-export function CalendarClient({ cronJobs }: { cronJobs: CronJob[] }) {
+export function CalendarClient({ cronJobs: initialCronJobs }: { cronJobs: CronJob[] }) {
+  const [cronJobs, setCronJobs] = useState(initialCronJobs);
   const [filter, setFilter] = useState<"all" | "active" | "disabled">("all");
   const [calRange, setCalRange] = useState<"today" | "tomorrow" | "week">("today");
   const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
@@ -66,6 +70,23 @@ export function CalendarClient({ cronJobs }: { cronJobs: CronJob[] }) {
       .catch((err) => setCalError(err.message))
       .finally(() => setCalLoading(false));
   }, [calRange]);
+
+  const handleToggleCron = useCallback(async (id: string, currentEnabled: boolean) => {
+    const newEnabled = !currentEnabled;
+    const job = cronJobs.find((j) => j.id === id);
+    setCronJobs((prev) => prev.map((j) => j.id === id ? { ...j, enabled: newEnabled } : j));
+    const res = await fetch("/api/cron", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, enabled: newEnabled }),
+    });
+    if (res.ok) {
+      toast.success(`${job?.name}: ${newEnabled ? "enabled" : "disabled"}`);
+    } else {
+      toast.error("Failed to update cron job");
+      setCronJobs((prev) => prev.map((j) => j.id === id ? { ...j, enabled: currentEnabled } : j));
+    }
+  }, [cronJobs]);
 
   const filtered = cronJobs.filter((job) => {
     if (filter === "active") return job.enabled;
@@ -113,7 +134,7 @@ export function CalendarClient({ cronJobs }: { cronJobs: CronJob[] }) {
           </div>
         ) : (
           filtered.map((job) => (
-            <CronJobCard key={job.id} job={job} />
+            <CronJobCard key={job.id} job={job} onToggle={handleToggleCron} />
           ))
         )}
       </div>
@@ -166,7 +187,7 @@ export function CalendarClient({ cronJobs }: { cronJobs: CronJob[] }) {
   );
 }
 
-function CronJobCard({ job }: { job: CronJob }) {
+function CronJobCard({ job, onToggle }: { job: CronJob; onToggle: (id: string, enabled: boolean) => void }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -178,7 +199,7 @@ function CronJobCard({ job }: { job: CronJob }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-semibold">{job.name}</span>
-            <StatusBadge enabled={job.enabled} />
+            <StatusBadge enabled={job.enabled} onClick={() => onToggle(job.id, job.enabled)} />
             <TypeBadge kind={job.name} />
           </div>
           <div className="text-xs text-muted-foreground">{job.description}</div>

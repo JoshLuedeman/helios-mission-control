@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./command-palette";
 
 const NAV_ITEMS = [
-  { href: "/tasks", label: "Tasks", emoji: "🎯" },
-  { href: "/calendar", label: "Calendar", emoji: "📅" },
-  { href: "/projects", label: "Projects", emoji: "🚀" },
-  { href: "/memory", label: "Memory", emoji: "🧠" },
-  { href: "/docs", label: "Docs", emoji: "📄" },
-  { href: "/search", label: "Search", emoji: "🔍" },
+  { href: "/tasks", label: "Tasks", emoji: "🎯", shortcut: "1" },
+  { href: "/calendar", label: "Calendar", emoji: "📅", shortcut: "2" },
+  { href: "/projects", label: "Projects", emoji: "🚀", shortcut: "3" },
+  { href: "/memory", label: "Memory", emoji: "🧠", shortcut: "4" },
+  { href: "/docs", label: "Docs", emoji: "📄", shortcut: "5" },
+  { href: "/search", label: "Search", emoji: "🔍", shortcut: "6" },
 ];
 
 function OnlineDot() {
@@ -26,6 +26,7 @@ function OnlineDot() {
 
 export function NavShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [time, setTime] = useState<string>("");
 
   useEffect(() => {
@@ -37,6 +38,42 @@ export function NavShell({ children }: { children: React.ReactNode }) {
     const interval = setInterval(tick, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't fire shortcuts when typing in inputs
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) return;
+
+      const routes: Record<string, string> = {
+        "1": "/tasks",
+        "2": "/calendar",
+        "3": "/projects",
+        "4": "/memory",
+        "5": "/docs",
+        "6": "/search",
+        "0": "/",
+      };
+
+      if (routes[e.key] && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        router.push(routes[e.key]);
+      }
+
+      if (e.key === "n" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        router.push("/tasks?action=create");
+      }
+
+      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        router.push("/search");
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [router]);
 
   return (
     <div className="flex h-full">
@@ -81,7 +118,10 @@ export function NavShell({ children }: { children: React.ReactNode }) {
                 )}
               >
                 <span className="text-base">{item.emoji}</span>
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                <kbd className="rounded border border-border-dim/50 bg-void/50 px-1 py-0.5 font-mono text-[9px] text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {item.shortcut}
+                </kbd>
               </Link>
             );
           })}

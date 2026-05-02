@@ -1,4 +1,4 @@
-import { readDocs, readBrainFiles, isBrainMounted } from "@/lib/data/workspace";
+import { readDocs, readBrainFiles, isBrainMounted, readBrainTree } from "@/lib/data/workspace";
 import { DocsClient } from "./docs-client";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,7 @@ export default function DocsPage() {
   }));
 
   const brainMounted = isBrainMounted();
+  const brainTree = readBrainTree();
 
-  return <DocsClient docs={docs} brainFiles={brainFiles} brainMounted={brainMounted} />;
+  return <DocsClient docs={docs} brainFiles={brainFiles} brainMounted={brainMounted} brainTree={brainTree} />;
 }
