@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { CommandPalette } from "./command-palette";
 
 const NAV_ITEMS = [
   { href: "/tasks", label: "Tasks", emoji: "🎯" },
@@ -87,12 +88,16 @@ export function NavShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border-dim p-3 space-y-1">
+        <div className="border-t border-border-dim p-3 space-y-1.5">
+          <div className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
+            <kbd className="rounded border border-border-dim bg-void px-1 py-0.5 font-mono">⌘K</kbd>
+            <span>Command palette</span>
+          </div>
           {time && (
             <div className="font-mono text-xs text-muted-foreground text-center">{time}</div>
           )}
           <div className="font-mono text-[10px] text-muted-foreground/50 text-center">
-            v0.1.0 · localhost
+            v0.2.0 · localhost
           </div>
         </div>
       </nav>
@@ -101,6 +106,9 @@ export function NavShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-auto bg-void">
         {children}
       </main>
+
+      {/* Command Palette */}
+      <CommandPalette />
     </div>
   );
 }

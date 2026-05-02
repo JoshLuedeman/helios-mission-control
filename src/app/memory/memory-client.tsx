@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DailyLog, CompanionFile } from "@/lib/data/workspace";
+import { toast } from "sonner";
 
 function MarkdownContent({ content }: { content: string }) {
   const lines = content.split("\n");
@@ -75,6 +76,33 @@ export function MemoryClient({ dailyLogs, longTermMemory, companionFiles }: Memo
   const [activeTab, setActiveTab] = useState<"daily" | "longterm" | "companions">("daily");
   const [expandedLog, setExpandedLog] = useState<string | null>(dailyLogs[0]?.date || null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showQuickNote, setShowQuickNote] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleQuickNote = async () => {
+    if (!noteText.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: noteText }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(`Note saved to ${data.file}`);
+        setNoteText("");
+        setShowQuickNote(false);
+      } else {
+        toast.error("Failed to save note");
+      }
+    } catch {
+      toast.error("Failed to save note");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const filteredLogs = searchQuery
     ? dailyLogs.filter((log) => log.content.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -89,7 +117,43 @@ export function MemoryClient({ dailyLogs, longTermMemory, companionFiles }: Memo
             {dailyLogs.length} daily logs · {dailyLogs.reduce((s, l) => s + l.wordCount, 0).toLocaleString()} words total
           </p>
         </div>
+        <button
+          onClick={() => setShowQuickNote(!showQuickNote)}
+          className="rounded-lg bg-zeus-purple px-4 py-2 text-sm font-medium text-white hover:bg-zeus-purple/80 transition-colors"
+        >
+          + Quick Note
+        </button>
       </div>
+
+      {/* Quick Note Form */}
+      {showQuickNote && (
+        <div className="mb-6 rounded-xl border border-zeus-purple/30 bg-surface p-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-mono text-zeus-purple tracking-wider">
+              QUICK NOTE → today&apos;s daily log
+            </span>
+            <button onClick={() => setShowQuickNote(false)} className="text-muted-foreground hover:text-foreground text-xs">✕</button>
+          </div>
+          <textarea
+            placeholder="What should Helios remember? This will be appended to today's daily memory log..."
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            rows={3}
+            className="w-full rounded-lg border border-border-dim bg-void px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-zeus-purple focus:outline-none resize-none font-mono"
+            autoFocus
+          />
+          <div className="flex justify-end gap-2 mt-2">
+            <button onClick={() => setShowQuickNote(false)} className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+            <button
+              onClick={handleQuickNote}
+              disabled={!noteText.trim() || saving}
+              className="rounded-md bg-zeus-purple px-4 py-1.5 text-xs font-medium text-white hover:bg-zeus-purple/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {saving ? "Saving..." : "Save Note"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="mb-4">

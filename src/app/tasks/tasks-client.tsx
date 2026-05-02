@@ -1,8 +1,21 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { Task, TaskStatus, TaskPriority, Project } from "@/lib/data/workspace";
 import { getAgent, agents as allAgents } from "@/lib/agents.config";
+import { toast } from "sonner";
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { useDroppable } from "@dnd-kit/core";
+import { useDraggable } from "@dnd-kit/core";
 
 const STATUS_COLUMNS: { key: TaskStatus; label: string; color: string; icon: string }[] = [
   { key: "todo", label: "To Do", color: "border-status-scheduled/30", icon: "○" },
@@ -101,6 +114,56 @@ function TaskCard({
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+function DraggableTaskCard({
+  task,
+  onStatusChange,
+  onDelete,
+}: {
+  task: Task;
+  onStatusChange: (id: string, status: TaskStatus) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: { task },
+  });
+
+  const style = transform
+    ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? "opacity-30" : ""}
+      {...listeners}
+      {...attributes}
+    >
+      <TaskCard task={task} onStatusChange={onStatusChange} onDelete={onDelete} />
+    </div>
+  );
+}
+
+function DroppableColumn({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`space-y-2 min-h-[100px] rounded-lg transition-colors ${isOver ? "bg-zeus-purple/5 ring-1 ring-zeus-purple/20" : ""}`}
+    >
+      {children}
     </div>
   );
 }
@@ -231,9 +294,25 @@ export function TasksClient({ initialTasks, projects }: { initialTasks: Task[]; 
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  // Auto-open create form when navigated via command palette
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("action") === "create") {
+        setShowCreate(true);
+        window.history.replaceState({}, "", "/tasks");
+      }
+    }
+  }, []);
 
   const handleStatusChange = useCallback(async (id: string, status: TaskStatus) => {
-    // Optimistic update
+    const task = tasks.find((t) => t.id === id);
     setTasks((prev) =>
       prev.map((t) =>
         t.id === id
@@ -241,17 +320,28 @@ export function TasksClient({ initialTasks, projects }: { initialTasks: Task[]; 
           : t
       )
     );
-    await fetch("/api/tasks", {
+    const res = await fetch("/api/tasks", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status }),
     });
-  }, []);
+    if (res.ok) {
+      toast.success(`"${task?.title}" → ${status.replace("_", " ")}`);
+    } else {
+      toast.error("Failed to update task");
+    }
+  }, [tasks]);
 
   const handleDelete = useCallback(async (id: string) => {
+    const task = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
-  }, []);
+    const res = await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success(`Deleted "${task?.title}"`);
+    } else {
+      toast.error("Failed to delete task");
+    }
+  }, [tasks]);
 
   const handleCreate = useCallback(
     async (taskData: { title: string; description: string; priority: TaskPriority; assignee: string; project?: string; tags: string[] }) => {
@@ -264,6 +354,9 @@ export function TasksClient({ initialTasks, projects }: { initialTasks: Task[]; 
         const newTask = await res.json();
         setTasks((prev) => [...prev, newTask]);
         setShowCreate(false);
+        toast.success(`Created "${newTask.title}"`);
+      } else {
+        toast.error("Failed to create task");
       }
     },
     []
@@ -313,35 +406,62 @@ export function TasksClient({ initialTasks, projects }: { initialTasks: Task[]; 
       </div>
 
       {/* Kanban Board */}
-      <div className="grid grid-cols-4 gap-4">
-        {STATUS_COLUMNS.map((col) => {
-          const colTasks = filtered.filter((t) => t.status === col.key);
-          return (
-            <div key={col.key} className="space-y-2">
-              <div className={`rounded-lg border-t-2 ${col.color} bg-surface/30 px-3 py-2`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-semibold tracking-wider text-muted-foreground">
-                    {col.icon} {col.label.toUpperCase()}
-                  </span>
-                  <span className="rounded-full bg-elevated px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
-                    {colTasks.length}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {colTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} onStatusChange={handleStatusChange} onDelete={handleDelete} />
-                ))}
-                {colTasks.length === 0 && (
-                  <div className="rounded-lg border border-dashed border-border-dim p-4 text-center text-xs text-muted-foreground">
-                    No tasks
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={(event: DragStartEvent) => {
+          const task = tasks.find((t) => t.id === event.active.id);
+          setActiveTask(task || null);
+        }}
+        onDragEnd={(event: DragEndEvent) => {
+          setActiveTask(null);
+          const { active, over } = event;
+          if (!over) return;
+          const taskId = active.id as string;
+          const newStatus = over.id as TaskStatus;
+          const task = tasks.find((t) => t.id === taskId);
+          if (task && task.status !== newStatus) {
+            handleStatusChange(taskId, newStatus);
+          }
+        }}
+      >
+        <div className="grid grid-cols-4 gap-4">
+          {STATUS_COLUMNS.map((col) => {
+            const colTasks = filtered.filter((t) => t.status === col.key);
+            return (
+              <div key={col.key} className="space-y-2">
+                <div className={`rounded-lg border-t-2 ${col.color} bg-surface/30 px-3 py-2`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-semibold tracking-wider text-muted-foreground">
+                      {col.icon} {col.label.toUpperCase()}
+                    </span>
+                    <span className="rounded-full bg-elevated px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+                      {colTasks.length}
+                    </span>
                   </div>
-                )}
+                </div>
+                <DroppableColumn id={col.key}>
+                  {colTasks.map((task) => (
+                    <DraggableTaskCard key={task.id} task={task} onStatusChange={handleStatusChange} onDelete={handleDelete} />
+                  ))}
+                  {colTasks.length === 0 && (
+                    <div className="rounded-lg border border-dashed border-border-dim p-4 text-center text-xs text-muted-foreground">
+                      Drop here
+                    </div>
+                  )}
+                </DroppableColumn>
               </div>
+            );
+          })}
+        </div>
+        <DragOverlay>
+          {activeTask && (
+            <div className="opacity-90 rotate-2 scale-105">
+              <TaskCard task={activeTask} onStatusChange={() => {}} onDelete={() => {}} />
             </div>
-          );
-        })}
-      </div>
+          )}
+        </DragOverlay>
+      </DndContext>
     </div>
   );
 }

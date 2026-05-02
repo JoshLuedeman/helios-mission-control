@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import type { Project, Task, ProjectStatus } from "@/lib/data/workspace";
+import { toast } from "sonner";
 
 const STATUS_COLORS: Record<ProjectStatus, string> = {
   active: "bg-status-online/10 text-status-online",
@@ -79,9 +80,50 @@ function ProjectCard({
   );
 }
 
-export function ProjectsClient({ projects, tasks }: { projects: Project[]; tasks: Task[] }) {
+export function ProjectsClient({ projects: initialProjects, tasks }: { projects: Project[]; tasks: Task[] }) {
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [filterStatus, setFilterStatus] = useState<ProjectStatus | "all">("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const handleStatusChange = useCallback(async (id: string, status: ProjectStatus) => {
+    const proj = projects.find((p) => p.id === id);
+    setProjects((prev) => prev.map((p) => p.id === id ? { ...p, status, updatedAt: new Date().toISOString() } : p));
+    const res = await fetch("/api/projects", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    if (res.ok) {
+      toast.success(`"${proj?.name}" → ${status}`);
+    }
+  }, [projects]);
+
+  const handleCreate = useCallback(async (data: { name: string; description: string; category: string; tags: string[] }) => {
+    const res = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) {
+      const newProject = await res.json();
+      setProjects((prev) => [...prev, newProject]);
+      setShowCreate(false);
+      toast.success(`Created "${newProject.name}"`);
+    } else {
+      toast.error("Failed to create project");
+    }
+  }, []);
+
+  const handleDelete = useCallback(async (id: string) => {
+    const proj = projects.find((p) => p.id === id);
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    if (selectedProject?.id === id) setSelectedProject(null);
+    const res = await fetch(`/api/projects?id=${id}`, { method: "DELETE" });
+    if (res.ok) {
+      toast.success(`Deleted "${proj?.name}"`);
+    }
+  }, [projects, selectedProject]);
 
   const filtered = filterStatus === "all"
     ? projects
@@ -129,12 +171,26 @@ export function ProjectsClient({ projects, tasks }: { projects: Project[]; tasks
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">🚀 Projects</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {projects.length} projects · {projects.filter((p) => p.status === "active").length} active
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">🚀 Projects</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {projects.length} projects · {projects.filter((p) => p.status === "active").length} active
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          className="rounded-lg bg-zeus-purple px-4 py-2 text-sm font-medium text-white hover:bg-zeus-purple/80 transition-colors"
+        >
+          + New Project
+        </button>
       </div>
+
+      {showCreate && (
+        <div className="mb-6 rounded-xl border border-zeus-purple/30 bg-surface p-5">
+          <CreateProjectForm onSubmit={handleCreate} onCancel={() => setShowCreate(false)} />
+        </div>
+      )}
 
       {/* Filter */}
       <div className="mb-6 flex gap-1 rounded-lg bg-surface p-1 w-fit">
@@ -172,12 +228,34 @@ export function ProjectsClient({ projects, tasks }: { projects: Project[]; tasks
           <div className="flex-1 rounded-xl border border-border-dim bg-surface p-6 sticky top-8 self-start max-h-[calc(100vh-8rem)] overflow-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">{selectedProject.name}</h2>
-              <button
-                onClick={() => setSelectedProject(null)}
-                className="text-muted-foreground hover:text-foreground text-xs"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const cycle: ProjectStatus[] = ["planning", "active", "paused", "complete"];
+                    const idx = cycle.indexOf(selectedProject.status);
+                    const next = cycle[(idx + 1) % cycle.length];
+                    handleStatusChange(selectedProject.id, next);
+                    setSelectedProject({ ...selectedProject, status: next });
+                  }}
+                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-mono cursor-pointer hover:opacity-80 ${STATUS_COLORS[selectedProject.status]}`}
+                  title="Click to cycle status"
+                >
+                  {selectedProject.status.toUpperCase()} →
+                </button>
+                <button
+                  onClick={() => handleDelete(selectedProject.id)}
+                  className="text-muted-foreground/50 hover:text-destructive text-xs px-1 transition-colors"
+                  title="Delete project"
+                >
+                  🗑
+                </button>
+                <button
+                  onClick={() => setSelectedProject(null)}
+                  className="text-muted-foreground hover:text-foreground text-xs"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <p className="text-sm text-muted-foreground mb-4">{selectedProject.description}</p>
@@ -224,5 +302,90 @@ export function ProjectsClient({ projects, tasks }: { projects: Project[]; tasks
         )}
       </div>
     </div>
+  );
+}
+
+function CreateProjectForm({
+  onSubmit,
+  onCancel,
+}: {
+  onSubmit: (data: { name: string; description: string; category: string; tags: string[] }) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("general");
+  const [tagInput, setTagInput] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSubmit({
+      name,
+      description,
+      category,
+      tags: tagInput.split(",").map((t) => t.trim()).filter(Boolean),
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-mono text-zeus-purple tracking-wider">NEW PROJECT</span>
+        <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-foreground text-xs">✕</button>
+      </div>
+      <input
+        type="text"
+        placeholder="Project name..."
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="w-full rounded-lg border border-border-dim bg-void px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-zeus-purple focus:outline-none"
+        autoFocus
+      />
+      <textarea
+        placeholder="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        rows={2}
+        className="w-full rounded-lg border border-border-dim bg-void px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-zeus-purple focus:outline-none resize-none"
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[10px] font-mono text-muted-foreground mb-1 block">CATEGORY</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full rounded border border-border-dim bg-void px-2 py-1.5 text-xs text-foreground"
+          >
+            <option value="general">General</option>
+            <option value="oss">Open Source</option>
+            <option value="infrastructure">Infrastructure</option>
+            <option value="content">Content</option>
+            <option value="business">Business</option>
+            <option value="product">Product</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-mono text-muted-foreground mb-1 block">TAGS</label>
+          <input
+            type="text"
+            placeholder="comma-separated"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            className="w-full rounded border border-border-dim bg-void px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none font-mono"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" onClick={onCancel} className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+        <button
+          type="submit"
+          disabled={!name.trim()}
+          className="rounded-md bg-zeus-purple px-4 py-1.5 text-xs font-medium text-white hover:bg-zeus-purple/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Create Project
+        </button>
+      </div>
+    </form>
   );
 }

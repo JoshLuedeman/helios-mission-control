@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { NavShell } from "@/components/layout/nav-shell";
+import { Toaster } from "@/components/ui/sonner";
 import { ensureWorkspaceFiles } from "@/lib/data/seed";
 
 // Seed tasks.json and projects.json if they don't exist
@@ -34,6 +35,7 @@ export default function RootLayout({
     >
       <body className="h-full bg-void">
         <NavShell>{children}</NavShell>
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );
