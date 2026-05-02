@@ -244,8 +244,8 @@ export function DocsClient({
           </div>
         )}
 
-        {/* Document List */}
-        <div className="w-full max-w-lg space-y-2">
+        {/* Document List — expandable cards */}
+        <div className="flex-1 space-y-2">
           {activeSection === "workspace" ? (
             filteredDocs.length === 0 ? (
               <div className="rounded-xl border border-border-dim bg-surface p-8 text-center text-muted-foreground">
@@ -253,7 +253,7 @@ export function DocsClient({
               </div>
             ) : (
               filteredDocs.map((doc) => (
-                <DocCard
+                <ExpandableDocCard
                   key={doc.path}
                   title={doc.title}
                   path={doc.path}
@@ -262,11 +262,27 @@ export function DocsClient({
                   wordCount={doc.wordCount}
                   sizeBytes={doc.sizeBytes}
                   modifiedAt={doc.modifiedAt}
-                  isSelected={selectedDoc?.path === doc.path}
-                  onClick={() => {
-                    setSelectedDoc({ ...doc, source: "workspace" });
-                    setEditing(false);
+                  content={doc.content}
+                  source="workspace"
+                  isExpanded={selectedDoc?.path === doc.path}
+                  onToggle={() => {
+                    if (selectedDoc?.path === doc.path) {
+                      setSelectedDoc(null);
+                      setEditing(false);
+                    } else {
+                      setSelectedDoc({ ...doc, source: "workspace" });
+                      setEditing(false);
+                    }
                   }}
+                  editing={selectedDoc?.path === doc.path && editing}
+                  editContent={editContent}
+                  showPreview={showPreview}
+                  onEdit={() => { setEditing(true); setEditContent(doc.content); }}
+                  onSave={handleSave}
+                  onCancelEdit={() => setEditing(false)}
+                  onTogglePreview={() => setShowPreview(!showPreview)}
+                  onEditContentChange={setEditContent}
+                  onDelete={handleDelete}
                 />
               ))
             )
@@ -277,7 +293,7 @@ export function DocsClient({
               </div>
             ) : (
               filteredBrain.map((bf) => (
-                <DocCard
+                <ExpandableDocCard
                   key={bf.path}
                   title={bf.title}
                   path={bf.path}
@@ -286,141 +302,151 @@ export function DocsClient({
                   wordCount={bf.wordCount}
                   sizeBytes={bf.sizeBytes}
                   modifiedAt={bf.modifiedAt}
-                  isSelected={selectedDoc?.path === bf.path}
-                  onClick={() => {
-                    setSelectedDoc({ ...bf, source: "brain" });
-                    setEditing(false);
+                  content={bf.content}
+                  source="brain"
+                  isExpanded={selectedDoc?.path === bf.path}
+                  onToggle={() => {
+                    if (selectedDoc?.path === bf.path) {
+                      setSelectedDoc(null);
+                      setEditing(false);
+                    } else {
+                      setSelectedDoc({ ...bf, source: "brain" });
+                      setEditing(false);
+                    }
                   }}
+                  editing={false}
+                  editContent=""
+                  showPreview={true}
+                  onEdit={() => {}}
+                  onSave={() => {}}
+                  onCancelEdit={() => {}}
+                  onTogglePreview={() => {}}
+                  onEditContentChange={() => {}}
+                  onDelete={() => {}}
                 />
               ))
             )
           )}
         </div>
-
-        {/* Document Viewer / Editor */}
-        {selectedDoc && (
-          <div className="flex-1 rounded-xl border border-border-dim bg-surface p-6 sticky top-8 self-start max-h-[calc(100vh-8rem)] overflow-auto">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{selectedDoc.title}</h2>
-              <div className="flex items-center gap-2">
-                {selectedDoc.source === "workspace" && !editing && (
-                  <>
-                    <button
-                      onClick={() => { setEditing(true); setEditContent(selectedDoc.content); }}
-                      className="rounded-md bg-zeus-purple/10 px-3 py-1 text-xs font-medium text-zeus-purple hover:bg-zeus-purple/20 transition-colors"
-                    >
-                      ✏️ Edit
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      className="text-muted-foreground/50 hover:text-destructive text-xs px-1 transition-colors"
-                      title="Delete"
-                    >
-                      🗑
-                    </button>
-                  </>
-                )}
-                {selectedDoc.source === "brain" && (
-                  <span className="rounded-md bg-muted px-3 py-1 text-[10px] font-mono text-muted-foreground">
-                    🔒 READ ONLY
-                  </span>
-                )}
-                {editing && (
-                  <>
-                    <button
-                      onClick={() => setShowPreview(!showPreview)}
-                      className="rounded-md bg-elevated px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {showPreview ? "Source" : "Preview"}
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      className="rounded-md bg-zeus-purple px-3 py-1 text-xs font-medium text-white hover:bg-zeus-purple/80 transition-colors"
-                    >
-                      💾 Save
-                    </button>
-                    <button
-                      onClick={() => setEditing(false)}
-                      className="text-muted-foreground hover:text-foreground text-xs px-1"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => { setSelectedDoc(null); setEditing(false); }}
-                  className="text-muted-foreground hover:text-foreground text-xs"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className="mb-3 flex gap-2 text-[10px] font-mono text-muted-foreground">
-              <span className={`rounded-full px-2 py-0.5 ${
-                selectedDoc.source === "brain"
-                  ? BRAIN_FOLDER_COLORS[(selectedDoc as BrainItem).folder] || ""
-                  : DIR_COLORS[(selectedDoc as DocItem).directory] || ""
-              }`}>
-                {selectedDoc.source === "brain" ? (selectedDoc as BrainItem).folder : (selectedDoc as DocItem).directory}
-              </span>
-              {selectedDoc.source === "brain" && <span className="rounded-full bg-helios-amber/10 text-helios-amber px-2 py-0.5">🧠 BRAIN</span>}
-              <span>{selectedDoc.wordCount.toLocaleString()} words</span>
-              <span>{formatFileSize(selectedDoc.sizeBytes)}</span>
-            </div>
-            <div className="font-mono text-[11px] text-muted-foreground mb-4">{selectedDoc.path}</div>
-
-            <div className="border-t border-border-dim pt-4">
-              {editing ? (
-                showPreview ? (
-                  <Markdown content={editContent} />
-                ) : (
-                  <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full h-96 rounded-lg border border-border-dim bg-void p-4 font-mono text-sm text-foreground resize-y focus:border-zeus-purple focus:outline-none"
-                  />
-                )
-              ) : (
-                <Markdown content={selectedDoc.content} />
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
-function DocCard({
-  title, path, badge, badgeColor, wordCount, sizeBytes, modifiedAt, isSelected, onClick,
+function ExpandableDocCard({
+  title, path, badge, badgeColor, wordCount, sizeBytes, modifiedAt, content,
+  source, isExpanded, onToggle,
+  editing, editContent, showPreview,
+  onEdit, onSave, onCancelEdit, onTogglePreview, onEditContentChange, onDelete,
 }: {
   title: string; path: string; badge: string; badgeColor: string;
-  wordCount: number; sizeBytes: number; modifiedAt: string;
-  isSelected: boolean; onClick: () => void;
+  wordCount: number; sizeBytes: number; modifiedAt: string; content: string;
+  source: "workspace" | "brain";
+  isExpanded: boolean; onToggle: () => void;
+  editing: boolean; editContent: string; showPreview: boolean;
+  onEdit: () => void; onSave: () => void; onCancelEdit: () => void;
+  onTogglePreview: () => void; onEditContentChange: (v: string) => void;
+  onDelete: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`w-full rounded-xl border bg-surface p-4 text-left transition-all hover:bg-elevated ${
-        isSelected ? "border-zeus-purple/50" : "border-border-dim hover:border-border-bright"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
+    <div className={`rounded-xl border bg-surface overflow-hidden transition-colors ${
+      isExpanded ? "border-zeus-purple/40" : "border-border-dim hover:border-border-bright"
+    }`}>
+      {/* Header — always visible */}
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center gap-4 px-5 py-3.5 text-left hover:bg-elevated/50 transition-colors"
+      >
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold truncate">{title}</div>
-          <div className="mt-1 font-mono text-[11px] text-muted-foreground truncate">{path}</div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-sm font-semibold truncate">{title}</span>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-mono ${badgeColor}`}>
+              {badge}
+            </span>
+            {source === "brain" && (
+              <span className="rounded-full bg-helios-amber/10 text-helios-amber px-2 py-0.5 text-[10px] font-mono">🧠</span>
+            )}
+          </div>
+          <div className="flex gap-3 text-[10px] text-muted-foreground font-mono">
+            <span>{path}</span>
+            <span>{wordCount.toLocaleString()} words</span>
+            <span>{formatFileSize(sizeBytes)}</span>
+            <span>{new Date(modifiedAt).toLocaleDateString()}</span>
+          </div>
         </div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-mono ${badgeColor}`}>
-          {badge}
-        </span>
-      </div>
-      <div className="mt-2 flex gap-3 text-[10px] text-muted-foreground font-mono">
-        <span>{wordCount.toLocaleString()} words</span>
-        <span>{formatFileSize(sizeBytes)}</span>
-        <span>{new Date(modifiedAt).toLocaleDateString()}</span>
-      </div>
-    </button>
+        <span className="text-muted-foreground text-xs shrink-0">{isExpanded ? "▼" : "▶"}</span>
+      </button>
+
+      {/* Expanded content */}
+      {isExpanded && (
+        <div className="border-t border-border-dim">
+          {/* Action bar */}
+          <div className="flex items-center gap-2 px-5 py-2 bg-elevated/30">
+            {source === "workspace" && !editing && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                  className="rounded-md bg-zeus-purple/10 px-3 py-1 text-xs font-medium text-zeus-purple hover:bg-zeus-purple/20 transition-colors"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  className="text-muted-foreground/50 hover:text-destructive text-xs px-1 transition-colors"
+                >
+                  🗑 Delete
+                </button>
+              </>
+            )}
+            {source === "brain" && (
+              <span className="rounded-md bg-muted px-3 py-1 text-[10px] font-mono text-muted-foreground">
+                🔒 READ ONLY
+              </span>
+            )}
+            {editing && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onTogglePreview(); }}
+                  className="rounded-md bg-elevated px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPreview ? "Source" : "Preview"}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onSave(); }}
+                  className="rounded-md bg-zeus-purple px-3 py-1 text-xs font-medium text-white hover:bg-zeus-purple/80 transition-colors"
+                >
+                  💾 Save
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onCancelEdit(); }}
+                  className="text-muted-foreground hover:text-foreground text-xs px-1"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="px-5 py-4 bg-void/50">
+            {editing ? (
+              showPreview ? (
+                <Markdown content={editContent} />
+              ) : (
+                <textarea
+                  value={editContent}
+                  onChange={(e) => onEditContentChange(e.target.value)}
+                  className="w-full h-96 rounded-lg border border-border-dim bg-void p-4 font-mono text-sm text-foreground resize-y focus:border-zeus-purple focus:outline-none"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )
+            ) : (
+              <Markdown content={content} />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
