@@ -176,7 +176,87 @@ export function readDocs(): DocFile[] {
   return docs.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
 }
 
-// ─── Tasks ────────────────────────────────────────────────
+// ─── Brain (Obsidian) ─────────────────────────────────────
+
+export interface BrainFile {
+  title: string;
+  path: string;       // relative to brain root
+  absolutePath: string;
+  folder: string;     // top-level brain folder (00-CORE, 10-LIBRARIES, etc.)
+  content: string;
+  wordCount: number;
+  modifiedAt: Date;
+  sizeBytes: number;
+}
+
+function scanBrainDir(dir: string, folder: string, maxDepth: number = 3, currentDepth: number = 0): BrainFile[] {
+  if (currentDepth > maxDepth) return [];
+  if (!fs.existsSync(dir)) return [];
+
+  const results: BrainFile[] = [];
+
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name.startsWith(".") || entry.name.startsWith("@") || entry.name === "node_modules") continue;
+
+      const abs = path.join(dir, entry.name);
+      if (entry.isFile() && /\.md$/i.test(entry.name)) {
+        try {
+          const stat = fs.statSync(abs);
+          // Skip very large files (>100KB)
+          if (stat.size > 100 * 1024) continue;
+          const content = fs.readFileSync(abs, "utf-8");
+          const titleMatch = content.match(/^#\s+(.+)$/m);
+          results.push({
+            title: titleMatch ? titleMatch[1] : entry.name.replace(/\.md$/, ""),
+            path: path.relative(paths.BRAIN_ROOT, abs),
+            absolutePath: abs,
+            folder,
+            content,
+            wordCount: content.split(/\s+/).length,
+            modifiedAt: stat.mtime,
+            sizeBytes: stat.size,
+          });
+        } catch {
+          // Skip unreadable files
+        }
+      } else if (entry.isDirectory()) {
+        results.push(...scanBrainDir(abs, folder, maxDepth, currentDepth + 1));
+      }
+    }
+  } catch {
+    // Brain might not be mounted
+  }
+
+  return results;
+}
+
+const BRAIN_FOLDERS = [
+  "00-CORE",
+  "05-INBOX",
+  "10-LIBRARIES",
+  "20-CONTEXTS",
+  "30-PROJECTS",
+  "90-WORKBENCH",
+  "95-SOURCES",
+];
+
+export function readBrainFiles(): BrainFile[] {
+  if (!fs.existsSync(paths.BRAIN_ROOT)) return [];
+
+  const files: BrainFile[] = [];
+  for (const folder of BRAIN_FOLDERS) {
+    const dir = path.join(paths.BRAIN_ROOT, folder);
+    files.push(...scanBrainDir(dir, folder));
+  }
+
+  return files.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+}
+
+export function isBrainMounted(): boolean {
+  return fs.existsSync(paths.BRAIN_ROOT);
+}
 
 export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
 export type TaskPriority = "urgent" | "high" | "normal" | "low";

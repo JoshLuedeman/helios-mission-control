@@ -3,68 +3,7 @@
 import { useState } from "react";
 import type { DailyLog, CompanionFile } from "@/lib/data/workspace";
 import { toast } from "sonner";
-
-function MarkdownContent({ content }: { content: string }) {
-  const lines = content.split("\n");
-  return (
-    <div className="prose-invert max-w-none space-y-1 font-mono text-sm leading-relaxed">
-      {lines.map((line, i) => {
-        if (line.startsWith("# ")) {
-          return <h2 key={i} className="text-xl font-bold text-foreground mt-4 mb-2 font-sans">{line.slice(2)}</h2>;
-        }
-        if (line.startsWith("## ")) {
-          return <h3 key={i} className="text-lg font-semibold text-helios-amber mt-3 mb-1 font-sans">{line.slice(3)}</h3>;
-        }
-        if (line.startsWith("### ")) {
-          return <h4 key={i} className="text-sm font-semibold text-zeus-purple mt-2 mb-1 font-sans">{line.slice(4)}</h4>;
-        }
-        if (line.startsWith("- ")) {
-          const text = line.slice(2);
-          const isChecked = text.startsWith("[x] ");
-          const isUnchecked = text.startsWith("[ ] ");
-          if (isChecked || isUnchecked) {
-            return (
-              <div key={i} className="flex items-start gap-2 pl-2">
-                <span className={isChecked ? "text-status-online" : "text-muted-foreground"}>
-                  {isChecked ? "✓" : "○"}
-                </span>
-                <span className={isChecked ? "text-muted-foreground line-through" : "text-foreground"}>
-                  {text.slice(4)}
-                </span>
-              </div>
-            );
-          }
-          return (
-            <div key={i} className="flex items-start gap-2 pl-2">
-              <span className="text-zeus-purple/50">›</span>
-              <span className="text-foreground/90">{text}</span>
-            </div>
-          );
-        }
-        if (line.startsWith("  - ")) {
-          return (
-            <div key={i} className="flex items-start gap-2 pl-6">
-              <span className="text-muted-foreground/50">·</span>
-              <span className="text-foreground/80">{line.slice(4)}</span>
-            </div>
-          );
-        }
-        if (line.trim() === "") {
-          return <div key={i} className="h-2" />;
-        }
-        if (line.startsWith("---")) {
-          return <hr key={i} className="border-border-dim my-3" />;
-        }
-        // Bold text
-        const formatted = line.replace(/\*\*(.+?)\*\*/g, '<strong class="text-foreground font-semibold">$1</strong>');
-        if (formatted !== line) {
-          return <div key={i} className="text-foreground/80" dangerouslySetInnerHTML={{ __html: formatted }} />;
-        }
-        return <div key={i} className="text-foreground/80">{line}</div>;
-      })}
-    </div>
-  );
-}
+import { Markdown } from "@/components/ui/markdown";
 
 interface MemoryClientProps {
   dailyLogs: DailyLog[];
@@ -214,7 +153,7 @@ export function MemoryClient({ dailyLogs, longTermMemory, companionFiles }: Memo
                 </button>
                 {expandedLog === log.date && (
                   <div className="border-t border-border-dim px-5 py-4 bg-void/50">
-                    <MarkdownContent content={log.content} />
+                    <Markdown content={log.content} />
                   </div>
                 )}
               </div>
@@ -232,7 +171,7 @@ export function MemoryClient({ dailyLogs, longTermMemory, companionFiles }: Memo
               LONG-TERM
             </span>
           </div>
-          <MarkdownContent content={longTermMemory} />
+          <Markdown content={longTermMemory} />
         </div>
       )}
 
@@ -276,7 +215,7 @@ function CompanionCard({ file }: { file: CompanionFile }) {
       </button>
       {expanded && (
         <div className="border-t border-border-dim px-5 py-4 bg-void/50">
-          <MarkdownContent content={file.content} />
+          <Markdown content={file.content} />
         </div>
       )}
     </div>
