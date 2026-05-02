@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Compiled Swift helper binary
+helpers/olympus-cal
+
+# Workspace data files (real data — not committed)
+# The app auto-creates these with demo data if they don't exist
+# See src/lib/data/seed.ts for the seeding logic

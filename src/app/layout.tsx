@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { NavShell } from "@/components/layout/nav-shell";
+import { ensureWorkspaceFiles } from "@/lib/data/seed";
+
+// Seed tasks.json and projects.json if they don't exist
+ensureWorkspaceFiles();
 
 const inter = Inter({
   variable: "--font-sans",
