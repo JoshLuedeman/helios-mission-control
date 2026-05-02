@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { formatFileSize } from "@/lib/format";
 import { Markdown } from "@/components/ui/markdown";
 import { toast } from "sonner";
@@ -71,6 +71,48 @@ export function DocsClient({
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [showPreview, setShowPreview] = useState(true);
+
+  // Handle brain wiki-link navigation (from ?brain= param or from Markdown callback)
+  const navigateToBrainFile = useCallback((target: string) => {
+    // target could be "iot", "ai-ml", "../pillars/data", "../../industries/manufacturing", etc.
+    // Search brain files for a matching path (fuzzy: filename contains target, or path ends with target)
+    const normalized = target.replace(/\.md$/, "").toLowerCase();
+    const match = brainFiles.find((bf) => {
+      const bfPath = bf.path.replace(/\.md$/, "").toLowerCase();
+      const bfName = bfPath.split("/").pop() || "";
+      // Exact filename match
+      if (bfName === normalized) return true;
+      // Path ends with target
+      if (bfPath.endsWith(normalized)) return true;
+      // Filename contains target (for short names like "iot", "data")
+      if (normalized.length >= 3 && bfName.includes(normalized)) return true;
+      return false;
+    });
+
+    if (match) {
+      setActiveSection("brain");
+      setSelectedDoc({ ...match, source: "brain" });
+      setEditing(false);
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      toast.info(`Brain file "${target}" not found — try searching`);
+      setActiveSection("brain");
+      setSearchQuery(target.split("/").pop() || target);
+    }
+  }, [brainFiles]);
+
+  // Handle ?brain= query param on load
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const brainTarget = params.get("brain");
+      if (brainTarget) {
+        navigateToBrainFile(brainTarget);
+        window.history.replaceState({}, "", "/docs");
+      }
+    }
+  }, [navigateToBrainFile]);
 
   const directories = Array.from(new Set(docs.map((d) => d.directory)));
 
@@ -283,6 +325,7 @@ export function DocsClient({
                   onTogglePreview={() => setShowPreview(!showPreview)}
                   onEditContentChange={setEditContent}
                   onDelete={handleDelete}
+                  onBrainNavigate={navigateToBrainFile}
                 />
               ))
             )
@@ -323,6 +366,7 @@ export function DocsClient({
                   onTogglePreview={() => {}}
                   onEditContentChange={() => {}}
                   onDelete={() => {}}
+                  onBrainNavigate={navigateToBrainFile}
                 />
               ))
             )
@@ -338,6 +382,7 @@ function ExpandableDocCard({
   source, isExpanded, onToggle,
   editing, editContent, showPreview,
   onEdit, onSave, onCancelEdit, onTogglePreview, onEditContentChange, onDelete,
+  onBrainNavigate,
 }: {
   title: string; path: string; badge: string; badgeColor: string;
   wordCount: number; sizeBytes: number; modifiedAt: string; content: string;
@@ -347,6 +392,7 @@ function ExpandableDocCard({
   onEdit: () => void; onSave: () => void; onCancelEdit: () => void;
   onTogglePreview: () => void; onEditContentChange: (v: string) => void;
   onDelete: () => void;
+  onBrainNavigate?: (target: string) => void;
 }) {
   return (
     <div className={`rounded-xl border bg-surface overflow-hidden transition-colors ${
@@ -431,7 +477,7 @@ function ExpandableDocCard({
           <div className="px-5 py-4 bg-void/50">
             {editing ? (
               showPreview ? (
-                <Markdown content={editContent} />
+                <Markdown content={editContent} onBrainNavigate={onBrainNavigate} />
               ) : (
                 <textarea
                   value={editContent}
@@ -441,7 +487,7 @@ function ExpandableDocCard({
                 />
               )
             ) : (
-              <Markdown content={content} />
+              <Markdown content={content} onBrainNavigate={onBrainNavigate} />
             )}
           </div>
         </div>

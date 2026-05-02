@@ -4,8 +4,27 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export function Markdown({ content }: { content: string }) {
+/**
+ * Convert Obsidian wiki-links to standard markdown links.
+ * [[target]] → [target](#brain:target)
+ * [[target|display]] → [display](#brain:target)
+ * [[path/to/page|display]] → [display](#brain:path/to/page)
+ */
+function preprocessWikiLinks(content: string): string {
+  return content.replace(/\[\[([^\]]+?)\]\]/g, (_, inner: string) => {
+    const parts = inner.split("|");
+    const target = parts[0].trim();
+    const display = parts.length > 1 ? parts[1].trim() : target;
+    // Encode the target as a brain: prefixed anchor that we'll intercept
+    return `[${display}](#brain:${encodeURIComponent(target)})`;
+  });
+}
+
+export function Markdown({ content, onBrainNavigate }: { content: string; onBrainNavigate?: (target: string) => void }) {
+  const router = useRouter();
+  const processed = preprocessWikiLinks(content);
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
@@ -39,16 +58,38 @@ export function Markdown({ content }: { content: string }) {
         p: ({ children }) => (
           <p className="text-sm text-foreground/85 leading-relaxed mb-3">{children}</p>
         ),
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            className="text-zeus-purple hover:text-zeus-purple/80 underline decoration-zeus-purple/30 hover:decoration-zeus-purple/60 transition-colors"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {children}
-          </a>
-        ),
+        a: ({ href, children }) => {
+          // Intercept brain wiki-links
+          if (href?.startsWith("#brain:")) {
+            const target = decodeURIComponent(href.slice(7));
+            return (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onBrainNavigate) {
+                    onBrainNavigate(target);
+                  } else {
+                    // Navigate to docs page with brain search
+                    router.push(`/docs?brain=${encodeURIComponent(target)}`);
+                  }
+                }}
+                className="text-zeus-purple hover:text-zeus-purple/80 underline decoration-zeus-purple/30 hover:decoration-zeus-purple/60 transition-colors cursor-pointer"
+              >
+                {children}
+              </button>
+            );
+          }
+          return (
+            <a
+              href={href}
+              className="text-zeus-purple hover:text-zeus-purple/80 underline decoration-zeus-purple/30 hover:decoration-zeus-purple/60 transition-colors"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {children}
+            </a>
+          );
+        },
         img: ({ src, alt }) => (
           <span className="block my-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -167,7 +208,7 @@ export function Markdown({ content }: { content: string }) {
         },
       }}
     >
-      {content}
+      {processed}
     </ReactMarkdown>
   );
 }
