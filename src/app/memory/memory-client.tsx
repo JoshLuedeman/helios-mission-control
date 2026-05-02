@@ -125,6 +125,38 @@ export function MemoryClient({ dailyLogs, longTermMemory, companionFiles }: Memo
       {/* Daily Logs */}
       {activeTab === "daily" && (
         <div className="space-y-3">
+          {/* Memory Timeline Bar Chart */}
+          {dailyLogs.length > 1 && (
+            <div className="rounded-xl border border-border-dim bg-surface p-4 mb-4">
+              <div className="text-[10px] font-mono text-muted-foreground tracking-wider mb-3">MEMORY TIMELINE</div>
+              <div className="flex items-end gap-1 h-16">
+                {dailyLogs.slice().reverse().map((log) => {
+                  const maxWords = Math.max(...dailyLogs.map((l) => l.wordCount));
+                  const height = Math.max(8, (log.wordCount / maxWords) * 100);
+                  const isExpanded = expandedLog === log.date;
+                  return (
+                    <button
+                      key={log.date}
+                      onClick={() => setExpandedLog(expandedLog === log.date ? null : log.date)}
+                      className={`flex-1 rounded-t transition-all hover:opacity-80 ${
+                        isExpanded ? "bg-zeus-purple" : "bg-helios-amber/40 hover:bg-helios-amber/60"
+                      }`}
+                      style={{ height: `${height}%` }}
+                      title={`${log.date}: ${log.wordCount.toLocaleString()} words`}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex gap-1 mt-1">
+                {dailyLogs.slice().reverse().map((log) => (
+                  <div key={log.date} className="flex-1 text-center font-mono text-[8px] text-muted-foreground/50 truncate">
+                    {log.date.slice(5)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {filteredLogs.length === 0 ? (
             <div className="rounded-xl border border-border-dim bg-surface p-8 text-center text-muted-foreground">
               {searchQuery ? "No matching logs found" : "No daily logs yet"}
@@ -152,8 +184,31 @@ export function MemoryClient({ dailyLogs, longTermMemory, companionFiles }: Memo
                   </span>
                 </button>
                 {expandedLog === log.date && (
-                  <div className="border-t border-border-dim px-5 py-4 bg-void/50">
-                    <Markdown content={log.content} />
+                  <div className="border-t border-border-dim bg-void/50">
+                    {/* Section TOC for long logs */}
+                    {log.wordCount > 200 && (() => {
+                      const sections = log.content.split("\n").filter((l) => l.startsWith("## ")).map((l) => l.slice(3));
+                      if (sections.length < 2) return null;
+                      return (
+                        <div className="px-5 pt-3 pb-1 border-b border-border-dim/50">
+                          <div className="text-[10px] font-mono text-muted-foreground tracking-wider mb-1.5">SECTIONS</div>
+                          <div className="flex flex-wrap gap-1.5 mb-1">
+                            {sections.map((s, i) => (
+                              <a
+                                key={i}
+                                href={`#section-${log.date}-${i}`}
+                                className="rounded bg-elevated px-2 py-0.5 text-[10px] text-muted-foreground hover:text-zeus-purple hover:bg-zeus-purple/10 transition-colors"
+                              >
+                                {s}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    <div className="px-5 py-4">
+                      <MarkdownWithAnchors content={log.content} datePrefix={log.date} />
+                    </div>
                   </div>
                 )}
               </div>
@@ -220,4 +275,13 @@ function CompanionCard({ file }: { file: CompanionFile }) {
       )}
     </div>
   );
+}
+
+function MarkdownWithAnchors({ content, datePrefix }: { content: string; datePrefix: string }) {
+  let sectionIdx = 0;
+  const processed = content.replace(/^(## .+)$/gm, (match) => {
+    const anchor = `<a id="section-${datePrefix}-${sectionIdx++}"></a>`;
+    return `${anchor}\n${match}`;
+  });
+  return <Markdown content={processed} />;
 }

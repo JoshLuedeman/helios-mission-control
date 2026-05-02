@@ -29,6 +29,14 @@ export function NavShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [time, setTime] = useState<string>("");
 
+  // Auto-refresh server data every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.refresh();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [router]);
+
   useEffect(() => {
     const tick = () => {
       const now = new Date();
