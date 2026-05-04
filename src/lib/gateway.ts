@@ -27,6 +27,27 @@ export interface CronJob {
   model: string | null;
 }
 
+export interface CronRun {
+  jobId: string;
+  jobName: string;
+  status: string; // "ok" | "error" | "timeout" etc
+  runAtMs: number;
+  durationMs: number | null;
+  summary: string | null;
+  model: string | null;
+  provider: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  sessionId: string | null;
+}
+
+export interface CronRunsResult {
+  entries: CronRun[];
+  total: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+}
+
 export interface AgentSession {
   agentId: string;
   updatedAt: number; // ms timestamp
@@ -226,5 +247,59 @@ export function fetchSessionUsage(activeMinutes?: number): UsageSummary {
       totalEstimatedCostUsd: 0,
       byAgent: {},
     };
+  }
+}
+
+/**
+ * Fetch cron run history from the OpenClaw gateway.
+ * @param jobId — optional filter to a specific job
+ * @param limit — max runs to return (default 50)
+ * @param offset — pagination offset (default 0)
+ */
+export function fetchCronRuns(jobId?: string, limit = 50, offset = 0): CronRunsResult {
+  try {
+    const params: Record<string, unknown> = { limit, offset };
+    if (jobId) params.jobId = jobId;
+    const raw = run(
+      `openclaw gateway call cron.runs --json --params '${JSON.stringify(params)}'`
+    );
+    const parsed = JSON.parse(raw) as {
+      entries?: Array<{
+        jobId?: string;
+        jobName?: string;
+        status?: string;
+        runAtMs?: number;
+        durationMs?: number | null;
+        summary?: string | null;
+        model?: string | null;
+        provider?: string | null;
+        usage?: { input_tokens?: number; output_tokens?: number };
+        sessionId?: string | null;
+      }>;
+      total?: number;
+      hasMore?: boolean;
+      nextOffset?: number | null;
+    };
+
+    return {
+      entries: (parsed.entries ?? []).map((e) => ({
+        jobId: e.jobId ?? "",
+        jobName: e.jobName ?? "",
+        status: e.status ?? "unknown",
+        runAtMs: e.runAtMs ?? 0,
+        durationMs: e.durationMs ?? null,
+        summary: e.summary ?? null,
+        model: e.model ?? null,
+        provider: e.provider ?? null,
+        inputTokens: e.usage?.input_tokens ?? 0,
+        outputTokens: e.usage?.output_tokens ?? 0,
+        sessionId: e.sessionId ?? null,
+      })),
+      total: parsed.total ?? 0,
+      hasMore: parsed.hasMore ?? false,
+      nextOffset: parsed.nextOffset ?? null,
+    };
+  } catch {
+    return { entries: [], total: 0, hasMore: false, nextOffset: null };
   }
 }

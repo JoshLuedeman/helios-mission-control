@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/docs", label: "Docs", emoji: "📄", shortcut: "5" },
   { href: "/search", label: "Search", emoji: "🔍", shortcut: "6" },
   { href: "/usage", label: "Usage & Cost", emoji: "💰", shortcut: "7" },
+  { href: "/cron", label: "Cron Jobs", emoji: "🕐", shortcut: "8" },
 ];
 
 function OnlineDot() {
