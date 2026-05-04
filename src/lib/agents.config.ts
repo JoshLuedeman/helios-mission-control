@@ -1,3 +1,5 @@
+import type { AgentSession } from "./gateway";
+
 export interface AgentConfig {
   id: string;
   name: string;
@@ -5,8 +7,7 @@ export interface AgentConfig {
   emoji: string;
   color: string; // Tailwind color token
   colorHex: string;
-  status: "online" | "standby" | "offline";
-  active: boolean; // Whether this agent is actually deployed
+  active: boolean;
 }
 
 export const agents: AgentConfig[] = [
@@ -17,8 +18,7 @@ export const agents: AgentConfig[] = [
     emoji: "⚡",
     color: "zeus-purple",
     colorHex: "#8b5cf6",
-    status: "offline",
-    active: false,
+    active: true,
   },
   {
     id: "helios",
@@ -27,7 +27,6 @@ export const agents: AgentConfig[] = [
     emoji: "☀️",
     color: "helios-amber",
     colorHex: "#f59e0b",
-    status: "online",
     active: true,
   },
   {
@@ -37,28 +36,25 @@ export const agents: AgentConfig[] = [
     emoji: "🦉",
     color: "athena-teal",
     colorHex: "#14b8a6",
-    status: "offline",
-    active: false,
+    active: true,
   },
   {
     id: "hermes",
     name: "Hermes",
-    title: "Comms & Scheduling",
-    emoji: "🏃",
+    title: "Comms, Scheduling & Crew Routing",
+    emoji: "📬",
     color: "hermes-green",
     colorHex: "#22c55e",
-    status: "offline",
-    active: false,
+    active: true,
   },
   {
     id: "hephaestus",
     name: "Hephaestus",
     title: "Code & Engineering",
-    emoji: "🔨",
+    emoji: "🔧",
     color: "hephaestus-red",
     colorHex: "#ef4444",
-    status: "offline",
-    active: false,
+    active: true,
   },
   {
     id: "apollo",
@@ -67,8 +63,7 @@ export const agents: AgentConfig[] = [
     emoji: "🎵",
     color: "apollo-gold",
     colorHex: "#eab308",
-    status: "offline",
-    active: false,
+    active: true,
   },
   {
     id: "demeter",
@@ -77,8 +72,16 @@ export const agents: AgentConfig[] = [
     emoji: "🌾",
     color: "demeter-forest",
     colorHex: "#16a34a",
-    status: "offline",
-    active: false,
+    active: true,
+  },
+  {
+    id: "argus",
+    name: "Argus",
+    title: "Monitoring & Observability",
+    emoji: "👁️",
+    color: "argus-slate",
+    colorHex: "#64748b",
+    active: true,
   },
 ];
 
@@ -88,6 +91,31 @@ export function getAgent(id: string): AgentConfig | undefined {
 
 export function getActiveAgents(): AgentConfig[] {
   return agents.filter((a) => a.active);
+}
+
+/**
+ * Compute live agent status from session data.
+ * - online:  most recent session updated within last 10 min
+ * - idle:    most recent session updated within last 60 min
+ * - offline: nothing in last 60 min
+ */
+export function computeAgentStatus(
+  agentId: string,
+  sessions: AgentSession[]
+): "online" | "idle" | "offline" {
+  const now = Date.now();
+  const agentSessions = sessions
+    .filter((s) => s.agentId === agentId)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  if (agentSessions.length === 0) return "offline";
+
+  const latest = agentSessions[0].updatedAt;
+  const diffMin = (now - latest) / 60_000;
+
+  if (diffMin <= 10) return "online";
+  if (diffMin <= 60) return "idle";
+  return "offline";
 }
 
 export const MISSION_STATEMENT =

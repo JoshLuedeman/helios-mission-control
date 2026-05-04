@@ -1,19 +1,17 @@
 import Link from "next/link";
-import { getActiveAgents, MISSION_STATEMENT } from "@/lib/agents.config";
-import { readDailyLogs, readCronJobs, readDocs, readTasks, readProjects } from "@/lib/data/workspace";
+import { MISSION_STATEMENT } from "@/lib/agents.config";
+import { readDailyLogs, readDocs, readTasks, readProjects } from "@/lib/data/workspace";
 import { DashboardCalendar } from "./dashboard-calendar";
+import { CrewStatusCard, CronJobsCard, SystemCard } from "./crew-cards";
 
 export const dynamic = "force-dynamic";
 
 export default function Home() {
-  const activeAgents = getActiveAgents();
   const logs = readDailyLogs();
-  const cronJobs = readCronJobs();
   const docs = readDocs();
   const tasks = readTasks();
   const projects = readProjects();
 
-  const enabledCrons = cronJobs.filter((j) => j.enabled);
   const todayLog = logs[0];
   const activeProjects = projects.filter((p) => p.status === "active");
 
@@ -40,24 +38,8 @@ export default function Home() {
 
       {/* Top Row: Status Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        {/* Active Agents */}
-        <div className="rounded-xl border border-border-dim bg-surface p-5">
-          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
-            CREW STATUS
-          </div>
-          <div className="space-y-2">
-            {activeAgents.map((agent) => (
-              <div key={agent.id} className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ backgroundColor: agent.colorHex }} />
-                  <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: agent.colorHex }} />
-                </span>
-                <span className="text-sm font-medium">{agent.emoji} {agent.name}</span>
-                <span className="ml-auto font-mono text-[10px] text-muted-foreground">{agent.title}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* Active Agents — live from gateway */}
+        <CrewStatusCard />
 
         {/* Tasks Summary */}
         <Link
@@ -86,45 +68,11 @@ export default function Home() {
           )}
         </Link>
 
-        {/* Cron Jobs */}
-        <Link
-          href="/calendar"
-          className="group rounded-xl border border-border-dim bg-surface p-5 transition-all hover:border-status-scheduled/30 hover:bg-elevated"
-        >
-          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
-            ⏱ CRON JOBS
-          </div>
-          <div className="text-2xl font-bold">{enabledCrons.length}</div>
-          <div className="flex gap-3 text-[10px] font-mono">
-            <span className="text-status-online">{enabledCrons.length} active</span>
-            <span className="text-muted-foreground">{cronJobs.length - enabledCrons.length} disabled</span>
-          </div>
-        </Link>
+        {/* Cron Jobs — live from gateway */}
+        <CronJobsCard fallbackCount={0} />
 
-        {/* Quick Stats */}
-        <div className="rounded-xl border border-border-dim bg-surface p-5">
-          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
-            ⚙️ SYSTEM
-          </div>
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Runtime</span>
-              <span className="font-mono text-foreground">OpenClaw</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Primary</span>
-              <span className="font-mono text-foreground">Mistral 7B</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Projects</span>
-              <span className="font-mono text-foreground">{activeProjects.length} active</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Memory</span>
-              <span className="font-mono text-foreground">{logs.length} logs</span>
-            </div>
-          </div>
-        </div>
+        {/* System — gateway status live */}
+        <SystemCard activeProjects={activeProjects.length} logCount={logs.length} />
       </div>
 
       {/* Bottom Row: Activity + Calendar */}
