@@ -34,11 +34,14 @@ export interface AgentSession {
 
 export interface SessionUsage {
   agentId: string;
+  sessionKey: string;
+  sessionId: string;
   model: string;
   modelProvider: string;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  contextTokens: number;
   estimatedCostUsd: number;
   updatedAt: number;
   kind: string;
@@ -158,16 +161,20 @@ export function fetchAgentSessions(activeMinutes = 120): AgentSession[] {
  * Cost is calculated client-side using a model pricing table since
  * github-copilot doesn't expose per-request billing.
  */
-export function fetchSessionUsage(): UsageSummary {
+export function fetchSessionUsage(activeMinutes?: number): UsageSummary {
   try {
-    const raw = run("openclaw sessions --all-agents --json");
+    const flag = activeMinutes ? `--active ${activeMinutes}` : "";
+    const raw = run(`openclaw sessions --all-agents ${flag} --json`.trim());
     const parsed = JSON.parse(raw) as Array<{
+      key?: string;
+      sessionId?: string;
       agentId?: string;
       model?: string;
       modelProvider?: string;
       inputTokens?: number;
       outputTokens?: number;
       totalTokens?: number;
+      contextTokens?: number;
       updatedAt?: number;
       kind?: string;
     }>;
@@ -180,11 +187,14 @@ export function fetchSessionUsage(): UsageSummary {
         const outputTokens = s.outputTokens ?? 0;
         return {
           agentId: s.agentId!,
+          sessionKey: s.key ?? "",
+          sessionId: s.sessionId ?? "",
           model,
           modelProvider: s.modelProvider ?? "unknown",
           inputTokens,
           outputTokens,
           totalTokens: s.totalTokens ?? 0,
+          contextTokens: s.contextTokens ?? 0,
           estimatedCostUsd: estimateCost(model, inputTokens, outputTokens),
           updatedAt: s.updatedAt ?? 0,
           kind: s.kind ?? "unknown",
