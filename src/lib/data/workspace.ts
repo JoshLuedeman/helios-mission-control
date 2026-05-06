@@ -461,3 +461,28 @@ export function searchFiles(query: string): SearchResult[] {
 
   return results;
 }
+
+// ─── Memory Stats (JSON sidecar) ─────────────────────────
+
+export interface MemoryStats {
+  date: string;
+  generatedAt: string;
+  sessionsProcessed: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  estimatedCostUsd: number;
+  agentSummaries: Record<string, { sessions: number; inputTokens: number; outputTokens: number; estimatedCostUsd: number }>;
+  topicsExtracted: string[];
+  wordCount: number;
+}
+
+export function readMemoryStats(date?: string): MemoryStats | null {
+  const targetDate = date || new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+  const jsonPath = path.join(paths.MEMORY_STATS_DIR, `${targetDate}.json`);
+  if (!fs.existsSync(jsonPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(jsonPath, "utf-8")) as MemoryStats;
+  } catch {
+    return null;
+  }
+}

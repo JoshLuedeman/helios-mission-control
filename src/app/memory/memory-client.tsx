@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { DailyLog, CompanionFile } from "@/lib/data/workspace";
+import type { DailyLog, CompanionFile, MemoryStats } from "@/lib/data/workspace";
 import { toast } from "sonner";
 import { Markdown } from "@/components/ui/markdown";
 
@@ -9,9 +9,10 @@ interface MemoryClientProps {
   dailyLogs: DailyLog[];
   longTermMemory: string;
   companionFiles: CompanionFile[];
+  todayStats?: MemoryStats | null;
 }
 
-export function MemoryClient({ dailyLogs, longTermMemory, companionFiles }: MemoryClientProps) {
+export function MemoryClient({ dailyLogs, longTermMemory, companionFiles, todayStats }: MemoryClientProps) {
   const [activeTab, setActiveTab] = useState<"daily" | "longterm" | "companions">("daily");
   const [expandedLog, setExpandedLog] = useState<string | null>(dailyLogs[0]?.date || null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -91,6 +92,44 @@ export function MemoryClient({ dailyLogs, longTermMemory, companionFiles }: Memo
               {saving ? "Saving..." : "Save Note"}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Memory Stats Card */}
+      {todayStats && (
+        <div className="mb-6 rounded-xl border border-zeus-purple/30 bg-surface p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-mono text-zeus-purple tracking-wider">📊 TODAY&apos;S CONSOLIDATION STATS</span>
+            <span className="text-xs text-muted-foreground font-mono">{todayStats.date}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-lg bg-void p-3">
+              <div className="text-lg font-bold text-foreground">{todayStats.sessionsProcessed}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">sessions</div>
+            </div>
+            <div className="rounded-lg bg-void p-3">
+              <div className="text-lg font-bold text-foreground">{todayStats.totalInputTokens.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">input tokens</div>
+            </div>
+            <div className="rounded-lg bg-void p-3">
+              <div className="text-lg font-bold text-foreground">{todayStats.totalOutputTokens.toLocaleString()}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">output tokens</div>
+            </div>
+            <div className="rounded-lg bg-void p-3">
+              <div className="text-lg font-bold text-green-400">${todayStats.estimatedCostUsd.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">est. cost</div>
+            </div>
+          </div>
+          {todayStats.topicsExtracted.length > 0 && (
+            <div className="mt-3">
+              <div className="text-xs text-muted-foreground mb-1.5">topics</div>
+              <div className="flex flex-wrap gap-1.5">
+                {todayStats.topicsExtracted.map((t) => (
+                  <span key={t} className="rounded-full bg-zeus-purple/10 px-2.5 py-0.5 text-xs text-zeus-purple border border-zeus-purple/20">{t}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -18,6 +18,7 @@ export const HEARTBEAT_MD = path.join(WORKSPACE, "HEARTBEAT.md");
 
 // Directories
 export const MEMORY_DIR = path.join(WORKSPACE, "memory");
+export const MEMORY_STATS_DIR = MEMORY_DIR; // JSON sidecar stats live alongside daily .md logs
 export const DOCS_DIR = path.join(WORKSPACE, "docs");
 export const ARTICLES_DIR = path.join(WORKSPACE, "articles");
 export const CONTENT_DIR = path.join(WORKSPACE, "content");
