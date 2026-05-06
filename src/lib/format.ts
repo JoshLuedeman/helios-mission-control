@@ -19,7 +19,8 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-export function formatCronExpression(expr: string): string {
+export function formatCronExpression(expr: string | undefined | null): string {
+  if (!expr) return "one-time";
   // Simple human-readable cron descriptions
   const parts = expr.split(" ");
   if (parts.length !== 5) return expr;

@@ -206,7 +206,7 @@ function CronJobCard({ job, onToggle }: { job: CronJob; onToggle: (id: string, e
         </div>
         <div className="text-right shrink-0">
           <div className="font-mono text-xs text-status-scheduled">
-            {job.schedule.expr}
+            {job.schedule.expr ?? "one-time"}
           </div>
           <div className="font-mono text-[10px] text-muted-foreground mt-0.5">
             {formatCronExpression(job.schedule.expr)}
