@@ -354,6 +354,48 @@ export function readProjects(): Project[] {
   return data.projects || [];
 }
 
+// ─── Zeus Log ───────────────────────────────────────────────
+
+export interface ZeusLogEntry {
+  timestamp: string;
+  mode: string;
+  lines: number;
+  warnings: number;
+  candidates: number;
+  alertsNew: number;
+  alertsEmailed: number;
+  raw: string;
+}
+
+function parseZeusEntry(block: string): ZeusLogEntry | null {
+  const tsMatch = block.match(/^##\s+(.+?)\s*$/m);
+  const syncMatch = block.match(/Z2 sync: mode=(\S+), (\d+) new routing lines, (\d+) warnings, (\d+) candidates/);
+  const alertMatch = block.match(/alerts new: (\d+) \((\d+) emailed\)/);
+  if (!tsMatch || !syncMatch) return null;
+  return {
+    timestamp: tsMatch[1].trim(),
+    mode: syncMatch[1],
+    lines: parseInt(syncMatch[2]),
+    warnings: parseInt(syncMatch[3]),
+    candidates: parseInt(syncMatch[4]),
+    alertsNew: alertMatch ? parseInt(alertMatch[1]) : 0,
+    alertsEmailed: alertMatch ? parseInt(alertMatch[2]) : 0,
+    raw: block.trim(),
+  };
+}
+
+export function readZeusLog(): ZeusLogEntry[] {
+  if (!fs.existsSync(paths.ZEUS_LOG)) return [];
+  const content = fs.readFileSync(paths.ZEUS_LOG, "utf-8");
+  const blocks = content.split(/\n(?=## )/);
+  return blocks.map(parseZeusEntry).filter((e): e is ZeusLogEntry => e !== null).reverse();
+}
+
+export function readRoutingLog(): string[] {
+  if (!fs.existsSync(paths.CREW_ROUTING_LOG)) return [];
+  return fs.readFileSync(paths.CREW_ROUTING_LOG, "utf-8").split("\n").filter(Boolean);
+}
+
 // ─── Search ───────────────────────────────────────────────
 
 export interface SearchResult {

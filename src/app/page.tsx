@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MISSION_STATEMENT } from "@/lib/agents.config";
-import { readDailyLogs, readDocs, readTasks, readProjects } from "@/lib/data/workspace";
+import { readDailyLogs, readDocs, readTasks, readProjects, readZeusLog } from "@/lib/data/workspace";
 import { DashboardCalendar } from "./dashboard-calendar";
 import { CrewStatusCard, CronJobsCard, SystemCard } from "./crew-cards";
 
@@ -11,6 +11,7 @@ export default function Home() {
   const docs = readDocs();
   const tasks = readTasks();
   const projects = readProjects();
+  const zeusEntries = readZeusLog().slice(0, 5);
 
   const todayLog = logs[0];
   const activeProjects = projects.filter((p) => p.status === "active");
@@ -199,6 +200,38 @@ export default function Home() {
               </Link>
             ))}
           </div>
+        </div>
+      </div>
+      {/* Zeus Activity Row */}
+      <div className="mt-4">
+        <div className="rounded-xl border border-border-dim bg-surface p-5">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs font-mono text-muted-foreground tracking-wider">⚡ ZEUS ACTIVITY</span>
+            <Link href="/routing" className="text-[10px] font-mono text-zeus-purple hover:underline">View all →</Link>
+          </div>
+          {zeusEntries.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No Zeus log entries yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {zeusEntries.map((entry, i) => (
+                <div key={i} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-xs ${
+                  entry.alertsNew > 0
+                    ? "bg-destructive/5 border border-destructive/20"
+                    : entry.warnings > 0
+                    ? "bg-helios-amber/5 border border-helios-amber/20"
+                    : "bg-elevated/50"
+                }`}>
+                  <span className="font-mono text-muted-foreground shrink-0 text-[10px]">{entry.timestamp}</span>
+                  <span className="text-foreground/80">{entry.lines} lines</span>
+                  {entry.warnings > 0 && <span className="text-helios-amber">⚠ {entry.warnings}w</span>}
+                  {entry.alertsNew > 0 && <span className="text-destructive">🔔 {entry.alertsNew}</span>}
+                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-mono ${
+                    entry.mode === "first-run" ? "bg-zeus-purple/20 text-zeus-purple" : "bg-void text-muted-foreground"
+                  }`}>{entry.mode}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

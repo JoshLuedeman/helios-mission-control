@@ -37,6 +37,10 @@ export const OPENCLAW_CONFIG = path.join(OPENCLAW_ROOT, "openclaw.json");
 export const TASKS_JSON = path.join(WORKSPACE, "tasks.json");
 export const PROJECTS_JSON = path.join(WORKSPACE, "projects.json");
 
+// Zeus & routing logs
+export const ZEUS_LOG = path.join(WORKSPACE, "workspaces/zeus/memory/zeus-log.md");
+export const CREW_ROUTING_LOG = path.join(OPENCLAW_ROOT, "logs/crew-routing.log");
+
 // Obsidian brain (read-only)
 export const BRAIN_ROOT = "/Volumes/batcave/brain";
 export const BRAIN_PROJECTS = path.join(BRAIN_ROOT, "30-PROJECTS");
