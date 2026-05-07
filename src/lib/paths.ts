@@ -43,5 +43,5 @@ export const ZEUS_LOG = path.join(WORKSPACE, "workspaces/zeus/memory/zeus-log.md
 export const CREW_ROUTING_LOG = path.join(OPENCLAW_ROOT, "logs/crew-routing.log");
 
 // Obsidian brain (read-only)
-export const BRAIN_ROOT = "/Volumes/batcave/brain";
+export const BRAIN_ROOT = "/Users/helios/git/brain";
 export const BRAIN_PROJECTS = path.join(BRAIN_ROOT, "30-PROJECTS");
