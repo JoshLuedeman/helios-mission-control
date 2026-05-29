@@ -12,9 +12,11 @@ export async function GET() {
 
   // Build per-agent status from live session data
   const agentData = agents.map((a) => {
-    const status = computeAgentStatus(a.id, sessions);
+    // Helios is the host machine — online whenever the gateway is reachable
+    const effectiveId = a.id === "helios" ? "main" : a.id;
+    const status = computeAgentStatus(effectiveId, sessions);
     const agentSessions = sessions
-      .filter((s) => s.agentId === a.id)
+      .filter((s) => s.agentId === effectiveId)
       .sort((x, y) => y.updatedAt - x.updatedAt);
     const lastActiveMs = agentSessions[0]?.updatedAt ?? null;
 

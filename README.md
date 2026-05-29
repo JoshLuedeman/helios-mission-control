@@ -85,19 +85,20 @@ The dashboard is a **view** over OpenClaw workspace files — not a separate dat
 | Memory | `~/.openclaw/workspace/memory/*.md` + `MEMORY.md` |
 | Docs | `~/.openclaw/workspace/docs/`, `articles/`, `content/` |
 
-## Agent crew (planned)
+## Agent Crew
 
-The system is designed for a multi-agent crew named after Greek gods. Currently only Helios is active:
+Full Greek Pantheon crew — all agents active on the same Mac mini:
 
 | Agent | Role | Color | Status |
 |-------|------|-------|--------|
-| ⚡ Zeus | Chief of Staff | Purple | Planned |
 | ☀️ Helios | Personal Ops | Amber | **Active** |
-| 🦉 Athena | Strategy | Teal | Planned |
-| 🏃 Hermes | Comms | Green | Planned |
-| 🔨 Hephaestus | Engineering | Red | Planned |
-| 🎵 Apollo | Content | Gold | Planned |
-| 🌾 Demeter | Home & Family | Forest | Planned |
+| ⚡ Zeus | Chief of Staff | Purple | **Active** |
+| 🔨 Hephaestus | Engineering | Red | **Active** |
+| 🎵 Apollo | Content | Gold | **Active** |
+| 🦉 Athena | Strategy | Teal | **Active** |
+| 🏃 Hermes | Comms | Green | **Active** |
+| 🌾 Demeter | Home & Family | Forest | **Active** |
+| 👁️ Argus | Monitoring | Blue | **Active** |
 
 ## License
 

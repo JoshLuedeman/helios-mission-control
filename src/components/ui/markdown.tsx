@@ -22,6 +22,17 @@ function preprocessWikiLinks(content: string): string {
   });
 }
 
+function resolveImageSrc(src: unknown) {
+  if (typeof src !== 'string' || !src) return '';
+  if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
+    return src;
+  }
+  if (src.startsWith('/Users/') || src.startsWith('/Volumes/') || src.startsWith('/private/') || src.startsWith('/tmp/')) {
+    return `/api/social/media?path=${encodeURIComponent(src)}`;
+  }
+  return src;
+}
+
 export function Markdown({ content, onBrainNavigate }: { content: string; onBrainNavigate?: (target: string) => void }) {
   const router = useRouter();
   const processed = preprocessWikiLinks(content);
@@ -90,18 +101,21 @@ export function Markdown({ content, onBrainNavigate }: { content: string; onBrai
             </a>
           );
         },
-        img: ({ src, alt }) => (
-          <span className="block my-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={src}
-              alt={alt || ""}
-              className="max-w-full rounded-lg border border-border-dim"
-              loading="lazy"
-            />
-            {alt && <span className="block text-xs text-muted-foreground mt-1 italic">{alt}</span>}
-          </span>
-        ),
+        img: ({ src, alt }) => {
+          const resolvedSrc = resolveImageSrc(src);
+          return (
+            <span className="block my-3 max-w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={resolvedSrc}
+                alt={alt || ""}
+                className="w-full max-w-full max-h-80 object-contain rounded-lg border border-border-dim bg-void"
+                loading="lazy"
+              />
+              {alt && <span className="block text-xs text-muted-foreground mt-1 italic">{alt}</span>}
+            </span>
+          );
+        },
         ul: ({ children }) => (
           <ul className="space-y-1 mb-3 ml-1">{children}</ul>
         ),

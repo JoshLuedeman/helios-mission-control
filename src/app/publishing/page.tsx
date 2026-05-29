@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { proxySocialJson } from '@/lib/social-proxy';
 import { PublishingClient } from './publishing-client';
 
@@ -15,6 +17,8 @@ interface Draft {
   updatedAt: string;
   publishedUrl: string | null;
   rejectionReason: string | null;
+  heroImage?: string | null;
+  heroImageDataUri?: string | null;
 }
 
 interface AuditEntry {
@@ -24,13 +28,25 @@ interface AuditEntry {
   ts: string;
 }
 
+function toDataUri(filePath?: string | null) {
+  if (!filePath) return null;
+  if (!fs.existsSync(filePath)) return null;
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+  return `data:${mime};base64,${fs.readFileSync(filePath).toString('base64')}`;
+}
+
 async function getData() {
   try {
     const [drafts, auditResult] = await Promise.all([
       proxySocialJson<Draft[]>('/drafts'),
       proxySocialJson<{ entries: AuditEntry[] }>('/audit', { params: { limit: '20' } }),
     ]);
-    return { drafts, auditEntries: auditResult.entries };
+    const enrichedDrafts = drafts.map(draft => ({
+      ...draft,
+      heroImageDataUri: toDataUri(draft.heroImage),
+    }));
+    return { drafts: enrichedDrafts, auditEntries: auditResult.entries };
   } catch (err) {
     console.error('[publishing page] failed to fetch data:', err);
     return { drafts: [], auditEntries: [] };

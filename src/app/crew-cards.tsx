@@ -30,32 +30,19 @@ interface CrewData {
   cronJobs: CronJobRow[];
 }
 
-function statusDot(status: AgentRow["status"], colorHex: string) {
+function statusDot(status: AgentRow["status"]) {
   if (status === "online") {
     return (
       <span className="relative flex h-2 w-2">
-        <span
-          className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
-          style={{ backgroundColor: colorHex }}
-        />
-        <span
-          className="relative inline-flex h-2 w-2 rounded-full"
-          style={{ backgroundColor: colorHex }}
-        />
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 bg-status-online" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-status-online" />
       </span>
     );
   }
   if (status === "idle") {
-    return (
-      <span
-        className="inline-flex h-2 w-2 rounded-full"
-        style={{ backgroundColor: "#ca8a04" }}
-      />
-    );
+    return <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: "#eab308" }} />;
   }
-  return (
-    <span className="inline-flex h-2 w-2 rounded-full bg-muted-foreground/40" />
-  );
+  return <span className="inline-flex h-2 w-2 rounded-full bg-destructive" />;
 }
 
 export function CrewStatusCard() {
@@ -98,7 +85,7 @@ export function CrewStatusCard() {
         <div className="space-y-2">
           {data.agents.map((agent) => (
             <div key={agent.id} className="flex items-center gap-2">
-              {statusDot(agent.status, agent.colorHex)}
+              {statusDot(agent.status)}
               <span className="text-sm font-medium">
                 {agent.emoji} {agent.name}
               </span>
@@ -246,6 +233,45 @@ export function SystemCard({
           <span className="font-mono text-foreground">{logCount} logs</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Weather Card ─────────────────────────────────────────────────────────────
+
+interface WeatherData {
+  tempF: number;
+  feelsLikeF: number;
+  description: string;
+  humidity: number;
+  windMph: number;
+  emoji: string;
+}
+
+export function WeatherCard({ weather }: { weather: WeatherData | null }) {
+  return (
+    <div className="rounded-xl border border-border-dim bg-surface p-5">
+      <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-3 tracking-wider">
+        🌤️ WEATHER · ORLANDO
+      </div>
+      {!weather ? (
+        <div className="text-sm text-muted-foreground">Unavailable</div>
+      ) : (
+        <>
+          <div className="flex items-baseline gap-3 mb-2">
+            <span className="text-3xl">{weather.emoji}</span>
+            <div>
+              <div className="text-2xl font-bold">{weather.tempF}°F</div>
+              <div className="text-xs text-muted-foreground">Feels like {weather.feelsLikeF}°</div>
+            </div>
+          </div>
+          <div className="text-sm text-foreground/80 mb-2">{weather.description}</div>
+          <div className="flex gap-3 text-[10px] font-mono text-muted-foreground">
+            <span>💧 {weather.humidity}%</span>
+            <span>💨 {weather.windMph} mph</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -161,7 +161,8 @@ export function fetchAgentSessions(activeMinutes = 120): AgentSession[] {
     const raw = run(
       `openclaw sessions --all-agents --active ${activeMinutes} --json`
     );
-    const parsed = JSON.parse(raw) as Array<{
+    const json = JSON.parse(raw);
+    const parsed = (Array.isArray(json) ? json : (json.sessions ?? [])) as Array<{
       agentId?: string;
       updatedAt?: number;
     }>;
@@ -186,7 +187,8 @@ export function fetchSessionUsage(activeMinutes?: number): UsageSummary {
   try {
     const flag = activeMinutes ? `--active ${activeMinutes}` : "";
     const raw = run(`openclaw sessions --all-agents ${flag} --json`.trim());
-    const parsed = JSON.parse(raw) as Array<{
+    const _json = JSON.parse(raw);
+    const parsed = (Array.isArray(_json) ? _json : (_json.sessions ?? [])) as Array<{
       key?: string;
       sessionId?: string;
       agentId?: string;

@@ -1,18 +1,35 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { MISSION_STATEMENT } from "@/lib/agents.config";
-import { readDailyLogs, readDocs, readTasks, readProjects, readZeusLog } from "@/lib/data/workspace";
+import { readDailyLogs, readDocs, readTasks, readProjects } from "@/lib/data/workspace";
 import { DashboardCalendar } from "./dashboard-calendar";
-import { CrewStatusCard, CronJobsCard, SystemCard } from "./crew-cards";
+import { CrewStatusCard, SystemCard, WeatherCard } from "./crew-cards";
+import type { WeatherData } from "./api/weather/route";
+import { execSync } from "child_process";
+
+function fetchWeather(): WeatherData | null {
+  try {
+    const raw = execSync('curl -s "https://wttr.in/Orlando+Florida?format=j1"', { timeout: 8000 }).toString();
+    const data = JSON.parse(raw);
+    const c = data.current_condition[0];
+    const code = parseInt(c.weatherCode);
+    const emoji = code === 113 ? "☀️" : code === 116 ? "⛅" : [119,122].includes(code) ? "☁️" : [200,386,389,392,395].includes(code) ? "⛈️" : [176,263,266,293,296,299,302,305,308,353,356,359].includes(code) ? "🌧️" : "🌡️";
+    return { tempF: parseInt(c.temp_F), feelsLikeF: parseInt(c.FeelsLikeF), description: c.weatherDesc[0].value, humidity: parseInt(c.humidity), windMph: parseInt(c.windspeedMiles), emoji };
+  } catch {
+    return null;
+  }
+}
 
 export const dynamic = "force-dynamic";
 
 export default function Home() {
-  const logs = readDailyLogs();
-  const docs = readDocs();
-  const tasks = readTasks();
-  const projects = readProjects();
-  const zeusEntries = readZeusLog().slice(0, 5);
-
+  const [logs, docs, tasks, projects, weather] = [
+    readDailyLogs(),
+    readDocs(),
+    readTasks(),
+    readProjects(),
+    fetchWeather(),
+  ];
   const todayLog = logs[0];
   const activeProjects = projects.filter((p) => p.status === "active");
 
@@ -69,12 +86,16 @@ export default function Home() {
           )}
         </Link>
 
-        {/* Cron Jobs — live from gateway */}
-        <CronJobsCard fallbackCount={0} />
-
         {/* System — gateway status live */}
         <SystemCard activeProjects={activeProjects.length} logCount={logs.length} />
+
+        {/* Weather — current conditions */}
+        <WeatherCard weather={weather} />
       </div>
+
+      {/* Main content + Cron sidebar */}
+      <div className="flex gap-4 items-start">
+        <div className="flex-1 min-w-0 space-y-4">
 
       {/* Bottom Row: Activity + Calendar */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -141,7 +162,9 @@ export default function Home() {
             <span className="text-xs font-mono text-muted-foreground tracking-wider">TODAY&apos;S CALENDAR</span>
             <Link href="/calendar" className="text-[10px] font-mono text-zeus-purple hover:underline">View all →</Link>
           </div>
+          <Suspense fallback={<div className="text-xs text-muted-foreground animate-pulse">Loading calendar…</div>}>
           <DashboardCalendar />
+          </Suspense>
         </div>
       </div>
 
@@ -202,38 +225,10 @@ export default function Home() {
           </div>
         </div>
       </div>
-      {/* Zeus Activity Row */}
-      <div className="mt-4">
-        <div className="rounded-xl border border-border-dim bg-surface p-5">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-mono text-muted-foreground tracking-wider">⚡ ZEUS ACTIVITY</span>
-            <Link href="/routing" className="text-[10px] font-mono text-zeus-purple hover:underline">View all →</Link>
-          </div>
-          {zeusEntries.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No Zeus log entries yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {zeusEntries.map((entry, i) => (
-                <div key={i} className={`flex items-center gap-3 rounded-lg px-3 py-2 text-xs ${
-                  entry.alertsNew > 0
-                    ? "bg-destructive/5 border border-destructive/20"
-                    : entry.warnings > 0
-                    ? "bg-helios-amber/5 border border-helios-amber/20"
-                    : "bg-elevated/50"
-                }`}>
-                  <span className="font-mono text-muted-foreground shrink-0 text-[10px]">{entry.timestamp}</span>
-                  <span className="text-foreground/80">{entry.lines} lines</span>
-                  {entry.warnings > 0 && <span className="text-helios-amber">⚠ {entry.warnings}w</span>}
-                  {entry.alertsNew > 0 && <span className="text-destructive">🔔 {entry.alertsNew}</span>}
-                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-mono ${
-                    entry.mode === "first-run" ? "bg-zeus-purple/20 text-zeus-purple" : "bg-void text-muted-foreground"
-                  }`}>{entry.mode}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+
+        </div>{/* end flex-1 main content */}
+
+      </div>{/* end main + cron flex */}
     </div>
   );
 }
